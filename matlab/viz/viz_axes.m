@@ -1,0 +1,9 @@
+function viz_axes(ax)
+% Styles an axes like the Python figures: ink2 ticks, solid light grid, no box, outward ticks.
+st = viz_style();
+set(ax, 'FontName', st.font, 'FontSize', st.fs_tick, 'XColor', st.ink2, ...
+    'YColor', st.ink2, 'Color', 'w', 'Box', 'off', 'XGrid', 'on', 'YGrid', 'on', ...
+    'GridColor', st.grid, 'GridAlpha', 1, 'XMinorGrid', 'off', 'YMinorGrid', 'off','Layer', 'bottom', ...
+    'TickDir', 'out', 'LineWidth', 1, 'NextPlot', 'add');
+set([ax.XLabel, ax.YLabel], 'FontName', st.font, 'FontSize', st.fs_label, 'Color', st.ink);
+end
