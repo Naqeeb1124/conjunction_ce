@@ -1,6 +1,6 @@
 # DERIVATIONS.md
 
-Every formula the code uses, with the steps. Section numbers are referred to from the code's docstrings. Numbers quoted here are for the baseline conjunction in `conjce/model.py`. They come from `results/results.json` (written by `run_all.py`; the key is named where it helps) or from the package call named next to them; the numbers of section 7 come from `results/scaleup.json` (written by `run_scaleup.py`).
+Every formula the code uses, with the steps. Section numbers are referred to from the code's docstrings. Numbers quoted here are for the baseline conjunction in `conjce/model.py`. They come from `results/results.json` (written by `run_all.py`; the key is named where it helps) or from the package call named next to them; the numbers of section 7 come from `results/scaleup.json` (written by `run_scaleup.py`). In sections 1.8 and 2.7 the measured numbers come from `matlab/results/twobody_check.json` (written by `matlab/run_twobody_check.m`) and, for the one comparison with the Simulink model, from `matlab/results/simulink_check.json`; the worked numbers there are computed from the baseline parameters as shown.
 
 Symbols used throughout:
 
@@ -187,6 +187,58 @@ After a burn the pass point sits far out on the Gaussian tail, so a 10% error in
 - A Monte Carlo count (4 million samples) on Chan case 1.
 - The NASA CARA 3D case: projection of states and covariances onto the encounter plane, then (1.3), against CARA's stored value at CARA's own tolerance (1e-3).
 
+### 1.8 A sampling check with two-body motion, and why it needs importance sampling
+
+`matlab/twobody/pc_montecarlo.m` checks the collision probability by sampling. The idea is to draw the relative position at the nominal closest approach from the model's Gaussian, move both satellites along their two-body orbits to their true closest approach, and count a hit when that distance is below `R`. This tests the numerical integral (1.3) and assumption 1 of section 1.1 (straight-line motion) together. It does not test assumption 2, because the Gaussian is the model's own. Counting hits among Gaussian samples (`pc_montecarlo_naive.m`) cannot work with a few thousand samples, as shown next, so `pc_montecarlo.m` draws the positions from another density and weights them with the Gaussian.
+
+**Plain counting cannot resolve these probabilities with a few thousand samples.** With `n` independent samples the number of hits is binomial with success probability `Pc`, so the estimate `hits / n` has standard error
+
+```
+se = sqrt( Pc (1 - Pc) / n )
+```
+
+For the baseline with nobody burning, `Pc = 1.488e-3`. With `n = 2000` the standard error is `sqrt(1.488e-3 * 0.9985 / 2000) = 8.6e-4`, which is 58% of `Pc`, and the expected number of hits is `n Pc = 2.98`. After one small burn `Pc = 2.9e-5` and the expected number of hits is 0.06.
+
+**Importance sampling.** Write `p(x)` for the Gaussian density of the relative position `x` in the encounter plane (the integrand of (1.1) with its prefactor) and `H` for the set of positions that lead to a hit, so `Pc = integral of 1_H(x) p(x) dA`. Let `q(x)` be any density that is positive on `H`. Multiply and divide by `q`:
+
+```
+Pc = integral of 1_H(x) (p(x) / q(x)) q(x) dA = E_q[ 1_H(x) p(x) / q(x) ]                (1.7)
+```
+
+So if `x_1, ..., x_n` are drawn from `q`, the average of the terms `1_H(x_k) w_k` with weights `w_k = p(x_k) / q(x_k)` is an unbiased estimate of `Pc`, and its standard error is the sample standard deviation of those terms divided by `sqrt(n)`.
+
+The proposal used here is uniform on the disc of radius `r_q = 2R` around zero relative position, `q = 1 / (pi r_q^2)`. For straight-line motion `H` is the disc of radius `R`, so `r_q = 2R` covers it and leaves room for any effect of the curved motion. The weight is
+
+```
+w_k = pi r_q^2 p(x_k) = ( r_q^2 / (2 sx sy) ) exp( -(x_k - xm)^2 / (2 sx^2) - (y_k - ym)^2 / (2 sy^2) )
+```
+
+The position along the relative velocity does not enter (1.1). Each sample draws it from its own Gaussian, with standard deviation `sigma_s`, and it needs no weight. `sigma_s` is not a parameter of the game model. The check sets it to `sx tan(phi/2)`: if the uncertainty comes from independent along-track errors `e1`, `e2` of equal variance on the two satellites, the relative position error is `e2 t2 - e1 t1`, which by section 2.4 has the component `(e2 - e1) cos(phi/2)` along `xihat` and `(e2 + e1) sin(phi/2)` along `shat`; the two variances are in the ratio `tan^2(phi/2)`.
+
+**Expected accuracy.** If `p` were constant over the proposal disc, every weight would equal one value `w0` and the estimate would be `w0` times the fraction of samples that hit. That fraction is binomial with success probability `h = pi R^2 / (pi r_q^2) = 1/4`. Then `Pc = w0 h` and
+
+```
+se = w0 sqrt( h (1 - h) / n ) = Pc sqrt( (1 - h) / (h n) ) = Pc sqrt( 3 / n )           (1.8)
+```
+
+which is 3.9% of `Pc` for `n = 2000`, whatever the size of `Pc`.
+
+When `p` varies across the disc, (1.8) is a lower bound. Write `m1` and `m2` for the averages of `w` and of `w^2` over `H`. A sample hits with probability `h`, so the mean of one term is `h m1 = Pc` and its mean square is `h m2`. The variance of one term is `h m2 - Pc^2`, and
+
+```
+se^2 / Pc^2 = ( h m2 - h^2 m1^2 ) / ( n h^2 m1^2 ) = ( m2 / (h m1^2) - 1 ) / n  >=  ( 1/h - 1 ) / n = 3 / n
+```
+
+because `m2 >= m1^2`, with equality when all weights on `H` are equal. The standard error that the check reports is estimated from the 2,000 samples themselves, so it scatters around this: a case with 534 hits instead of the expected 500 reports about `sqrt( 0.733 / (0.267 * 2000) ) = 3.7%`.
+
+**What is tested** (`matlab/tests/test_twobody.m`; numbers from `matlab/results/twobody_check.json`):
+
+- In each of the nine joint actions of the baseline (2,000 samples each, hit decided by the two-body closest approach) the estimate is within 2.1 standard errors of (1.3). The standard errors are 3.7% to 4.2% of `Pc`, for probabilities from 1.5e-3 down to 5.4e-43. The test bound is 4 standard errors.
+- The two-body hit test and the test `|x| < R` in the encounter plane give the same answer for every one of the 18,000 samples.
+- Plain counting on the no-burn case, for comparison only: 4 hits in 2,000 samples, exact 95% interval 5.5e-4 to 5.1e-3. It contains 1.488e-3 and is too wide to check anything.
+
+With 2,000 samples the check resolves differences in `Pc` of a few percent. It cannot see the difference between the linear and the propagated miss of section 2.7, which changes `Pc` by at most 0.2%.
+
 ---
 
 ## 2. From a burn to a change of the miss vector
@@ -301,6 +353,227 @@ What (2.5) neglects: the periodic terms of (2.1)-(2.2) (zero at whole orbits), t
 - (2.3) against a two-body (Keplerian) propagation of a burned and an unburned satellite: 344.341 m against the predicted 344.340 m.
 - (2.4) against two-body propagation of *both* satellites through a 3D crossing encounter, for crossing angles of 60, 90 and 120 degrees and six burn combinations. The predicted shift agrees with the propagated one to about 1e-5 (one centimetre in 730 m); the radial component does not move. The test tolerance is 1e-4.
 - The cancellation of equal same-sense burns, by the same propagation.
+
+Not tested: anything beyond two-body motion.
+
+### 2.7 Second-order terms of (2.5)
+
+Sections 2.2 to 2.5 are linear in the burn. This section derives the terms of second order; they account for what a two-body propagation finds beyond (2.5). Here `a` is the radius of the reference orbit and `mu` the gravitational parameter, as in section 2.3; `N = dt / T` is the whole number of reference periods between the burn and the nominal closest approach (2 in the baseline); `s_i = +1` for a posigrade and `-1` for a retrograde burn of size `u_i >= 0`; and `e_i = u_i / v` (1.3e-6 for 1 cm/s).
+
+**Step 1. The period after a tangential burn.** Before the burn let the satellite have semi-major axis `a_b` and period `T_b`, and at the burn point radius `r_b` and speed `v_b`. The burn changes the speed to `v_b (1 + s e)` at the same radius. The vis-viva equation before and after:
+
+```
+v_b^2             = mu (2 / r_b - 1 / a_b)
+v_b^2 (1 + s e)^2 = mu (2 / r_b - 1 / a')
+```
+
+Subtract the first from the second. Since `s^2 = 1`, `(1 + s e)^2 - 1 = 2 s e + e^2`:
+
+```
+v_b^2 (2 s e + e^2) = mu (1 / a_b - 1 / a')
+1 / a' = (1 / a_b) [ 1 - chi (2 s e + e^2) ],        chi = a_b v_b^2 / mu
+```
+
+(`chi = 1` for a circular orbit). Kepler's third law, `T ~ a^(3/2)`:
+
+```
+T' = T_b (a' / a_b)^(3/2) = T_b [ 1 - chi (2 s e + e^2) ]^(-3/2)
+```
+
+Use the binomial series `(1 - y)^(-3/2) = 1 + (3/2) y + (15/8) y^2 + ...` with `y = chi (2 s e + e^2)`. Then `(3/2) y = 3 chi s e + (3/2) chi e^2` and `(15/8) y^2 = (15/8) chi^2 * 4 e^2 + O(e^3) = (15/2) chi^2 e^2 + O(e^3)`:
+
+```
+T' = T_b [ 1 + 3 chi s e + ( (3/2) chi + (15/2) chi^2 ) e^2 ] + O(e^3)                  (2.6)
+```
+
+For a circular orbit `T' = T_b (1 + 3 s e + 9 e^2)`; the first-order term is the `dT / T = 3 dv / v` of section 2.3.
+
+**Step 2. Where the satellite is at the nominal time of closest approach.** Call the burn point `B`, and `that_B`, `rhat_B` the along-track and radial unit vectors there. With or without the burn the satellite passes through `B` again after each of its own periods, because a closed orbit repeats: without the burn with velocity `v_b that_B`, with the burn with velocity `v_b (1 + s e) that_B` (a tangential burn changes the speed, not the direction). The burn is at time `-dt = -N T`. The `N`-th return to `B` is at time `-N T + N T_b` without the burn and at `-N T + N T'` with it. At time 0, the nominal closest approach, the time since that return is therefore
+
+```
+tau_b = N (T - T_b)     without the burn,        tau' = N (T - T')     with the burn
+```
+
+(a negative value means the satellite has not reached `B` yet). Both are below 0.15 s in the baseline, so expand the position around `B`: `r(tau) = B + V tau + (1/2) A tau^2 + O(tau^3)`, with `V` the velocity at `B` and `A = -mu B / |B|^3` the gravitational acceleration at `B`. `A` is the same in both cases because it depends only on the position; for a near-circular orbit `A = -(v_b^2 / r_b) rhat_B`. Write `p_b = v_b tau_b` and `p' = v_b (1 + s e) tau'` for the distances travelled past `B`:
+
+```
+without the burn:   r = B + p_b that_B - ( p_b^2 / (2 r_b) ) rhat_B
+with the burn:      r = B + p'  that_B - ( p'^2  / (2 r_b) ) rhat_B
+```
+
+(in the quadratic term `v_b tau'` has been replaced by `p'`, an error of third order). The along-track displacement caused by the burn is `d = p' - p_b`:
+
+```
+d = v_b (1 + s e) N (T - T') - v_b N (T - T_b)
+  = v_b N [ (T - T') + s e (T - T') - (T - T_b) ]
+  = - v_b N [ (T' - T_b) + s e (T' - T) ]                                               (2.7)
+```
+
+The radial part is best read in the local axes at the position the satellite has without the burn. That position is the angle `theta_b = p_b / r_b` further along the orbit than `B`, so its along-track and radial unit vectors are those at `B` turned by `theta_b`: to first order `t = that_B - theta_b rhat_B` and `rhat = rhat_B + theta_b that_B`. The displacement vector is `D = (p' - p_b) that_B - ((p'^2 - p_b^2) / (2 r_b)) rhat_B`. Its radial component:
+
+```
+D . rhat = (p' - p_b) theta_b - (p'^2 - p_b^2) / (2 r_b)
+         = (p' - p_b) [ 2 p_b - (p' + p_b) ] / (2 r_b)
+         = - (p' - p_b)^2 / (2 r_b) = - d^2 / (2 r_b)
+```
+
+and its along-track component is `d` up to terms of third order. In words: the satellite is on the same curved track, `d` further along, and a circle of radius `r_b` drops `d^2 / (2 r_b)` below its tangent over an arc `d`.
+
+The velocity at time 0 with the burn is `V + A tau' = v_b (1 + s e) that_B - v_b (p' / r_b) rhat_B` to first order. In the local axes (`that_B = t + theta_b rhat`, `rhat_B = rhat - theta_b t`), again to first order:
+
+```
+velocity = v_b (1 + s e) t + v_b (p_b / r_b - p' / r_b) rhat = v_b (1 + s e) t - v_b (d / r_b) rhat
+```
+
+Collecting, for satellite `i` with nominal position `r_i` and velocity direction `t_i` at time 0 (in these terms `r_b` and `v_b` can be replaced by `a` and `v`; the differences, parts in 1e5 or less, matter only in (2.7) and are kept there):
+
+```
+position:   r_i + d_i t_i - ( d_i^2 / (2a) ) rhat
+velocity:   v (1 + s_i e_i) t_i - v (d_i / a) rhat                                      (2.8)
+```
+
+**Step 3. Satellite 1.** Its orbit without the burn is the reference orbit: `T_b = T`, `chi = 1`, `v_b = v`, and `s = +1`. From (2.6), `T' - T_b = T' - T = T (3 e1 + 9 e1^2)`. In (2.7), with `v e1 = u1` and `N T = dt`:
+
+```
+d1 = - v N [ T (3 e1 + 9 e1^2) + e1 T (3 e1) ] = - v N T (3 e1 + 12 e1^2) = - 3 u1 dt (1 + 4 u1 / v)        (2.9a)
+```
+
+**Step 4. Satellite 2.** In the reference encounter (the construction of `tests/test_maneuver.py`, also used by the MATLAB layer) satellite 2 is at `r1 + zeta0 rhat + xi0 xihat` at the nominal closest approach and has the same speed `v` as satellite 1. Its radius there is `a + delta` with `delta = sqrt((a + zeta0)^2 + xi0^2) - a` (30.0006 m in the baseline), so its orbit is not quite the reference orbit. Vis-viva at that point, with `v^2 = mu / a`:
+
+```
+1 / a_2 = 2 / (a + delta) - v^2 / mu = 2 / (a + delta) - 1 / a = (a - delta) / ( a (a + delta) )
+a_2 = a (a + delta) / (a - delta) = a (1 + 2 delta / a) + O(delta^2 / a)
+T_2 = T (a_2 / a)^(3/2) = T (1 + 3 delta / a)
+chi = a_2 v^2 / mu = a_2 / a = 1 + 2 delta / a
+```
+
+to first order in `delta / a` (4.3e-6). The burn point is `N (T_2 - T) = 0.15 s` of flight away from this point, which changes the radius and the speed by parts in 1e9, so `r_b = a + delta` and `v_b = v` are used. With `T_b = T_2`, `s = -1` and `e = e2`, (2.6) gives, dropping terms of order `e^2 delta / a` and `e delta^2 / a^2`:
+
+```
+T' - T_2 = T (1 + 3 delta/a) [ -3 (1 + 2 delta/a) e2 + 9 e2^2 ] = T [ -3 e2 (1 + 5 delta/a) + 9 e2^2 ]
+T' - T   = (T' - T_2) + (T_2 - T) = T [ -3 e2 (1 + 5 delta/a) + 9 e2^2 + 3 delta/a ]
+s e (T' - T) = - e2 T [ -3 e2 + 3 delta/a ] = T [ 3 e2^2 - 3 e2 delta/a ]
+(T' - T_2) + s e (T' - T) = T [ -3 e2 - 15 e2 delta/a + 9 e2^2 + 3 e2^2 - 3 e2 delta/a ]
+                          = -3 e2 T [ 1 + 6 delta/a - 4 e2 ]
+```
+
+and (2.7) becomes
+
+```
+d2 = 3 v e2 N T [ 1 + 6 delta/a - 4 e2 ] = 3 u2 dt (1 + 6 delta/a - 4 u2 / v)           (2.9b)
+```
+
+With the brackets set to 1, (2.9a) and (2.9b) are the `d1 = -3 u1 dt` and `d2 = +3 u2 dt` of section 2.5.
+
+**Step 5. Relative position and velocity at the nominal time.** Let `rho = r2 - r1` and `rho0 = xi0 xihat + zeta0 zetahat` the nominal miss. The radial unit vectors of the two satellites differ by the angle `xi0 / a = 1.3e-5`, which only multiplies terms that are already small, so `rhat = zetahat` for both. From (2.8):
+
+```
+rho = rho0 + d2 t2 - d1 t1 - ( (d2^2 - d1^2) / (2a) ) zetahat
+```
+
+Section 2.4 gives `t1 = cos(phi/2) xihat - sin(phi/2) shat` and `t2 = cos(phi/2) xihat + sin(phi/2) shat`, so `d2 t2 - d1 t1 = (d2 - d1) cos(phi/2) xihat + (d1 + d2) sin(phi/2) shat` and
+
+```
+rho . xihat   = xi0 + (d2 - d1) cos(phi/2)
+rho . zetahat = zeta0 - (d2^2 - d1^2) / (2a)
+rho . shat    = (d1 + d2) sin(phi/2)
+```
+
+The relative velocity, from (2.8) with `s1 = +1` and `s2 = -1`:
+
+```
+w = v (1 - e2) t2 - v (1 + e1) t1 - (v / a)(d2 - d1) zetahat
+  = v (t2 - t1) - v (e2 t2 + e1 t1) - (v / a)(d2 - d1) zetahat
+  = v [ 2 - (e2 - e1) ] sin(phi/2) shat - v (e1 + e2) cos(phi/2) xihat - (v / a)(d2 - d1) zetahat
+```
+
+using `t2 - t1 = 2 sin(phi/2) shat` and `e2 t2 + e1 t1 = (e1 + e2) cos(phi/2) xihat + (e2 - e1) sin(phi/2) shat`. Divide by the `shat` component, which is `2 v sin(phi/2)` to leading order. To first order the direction of the relative velocity is
+
+```
+shat' = shat - alpha xihat - beta zetahat
+alpha = (e1 + e2) cos(phi/2) / (2 sin(phi/2)),        beta = (d2 - d1) / (2 a sin(phi/2))
+```
+
+The burns turn the relative velocity by `alpha` in the horizontal plane (the two speeds have changed) and by `beta` out of it (the two satellites are at different points of their curved tracks). In the baseline `alpha` is at most 4e-6 and `beta` at most 2.1e-4.
+
+**Step 6. The miss vector.** As in section 2.4 the miss vector is the part of `rho` perpendicular to the relative velocity, which is now along `shat'`: `m = rho - (rho . shat') shat'`. Its components along the nominal axes, using `shat' . xihat = -alpha` and `shat' . zetahat = -beta`:
+
+```
+m . xihat   = rho . xihat   + alpha (rho . shat')
+m . zetahat = rho . zetahat + beta  (rho . shat')
+```
+
+Here `rho . shat' = rho . shat - alpha (rho . xihat) - beta (rho . zetahat)`. Inserted above, the last two terms give
+
+```
+in xi:    - alpha^2 (rho . xihat) - alpha beta (rho . zetahat)
+in zeta:  - alpha beta (rho . xihat) - beta^2 (rho . zetahat)
+```
+
+Each is a product of two tilts and a component of the miss itself (`rho . xihat` is at most 1553 m, `rho . zetahat` about 30 m), not of the much longer drift `d`. For two large burns, where they are largest, `alpha = 3.96e-6` and `beta = 2.11e-4`: the two terms in `xi` add up to 4.9e-8 m and the two in `zeta` to `1.30e-6 + 1.33e-6 = 2.6e-6 m`. They are dropped. With `rho . shat' = rho . shat`:
+
+```
+xi   = xi0 + (d2 - d1) cos(phi/2) + alpha (d1 + d2) sin(phi/2)
+     = xi0 + cos(phi/2) [ (d2 - d1) + (1/2)(e1 + e2)(d1 + d2) ]
+zeta = zeta0 - (d2^2 - d1^2) / (2a) + beta (d1 + d2) sin(phi/2)
+     = zeta0 - (d2^2 - d1^2) / (2a) + (d2 - d1)(d1 + d2) / (2a)
+     = zeta0
+```
+
+(`alpha sin(phi/2) = (1/2)(e1 + e2) cos(phi/2)` and `beta sin(phi/2) = (d2 - d1) / (2a)`). The radial component stays at `zeta0`: each satellite's drop below its tangent, `d^2 / (2a)`, which is 7.7 cm for a large burn, is cancelled exactly by the tilt `beta` of the relative velocity. What is left in `zeta` are the dropped products above, a few micrometres.
+
+**Step 7. Insert (2.9).** Keeping terms up to second order,
+
+```
+d2 - d1 = 3 dt [ u2 (1 + 6 delta/a - 4 u2/v) + u1 (1 + 4 u1/v) ]
+        = 3 dt [ (u1 + u2) + (4/v)(u1^2 - u2^2) + (6 delta/a) u2 ]
+(1/2)(e1 + e2)(d1 + d2) = (1/2) ((u1 + u2) / v) * 3 dt (u2 - u1) = - (3 dt / (2v)) (u1^2 - u2^2)
+```
+
+Their sum is `3 dt [ (u1 + u2) + (4 - 1/2)(u1^2 - u2^2) / v + (6 delta/a) u2 ]`. With `g = 3 dt cos(phi/2)`:
+
+```
+xi(a)   = xi0 + g (u1 + u2) + ( 7 g / (2 v) ) (u1^2 - u2^2) + (6 delta / a) g u2        (2.10)
+zeta(a) = zeta0
+```
+
+The first two terms are (2.5). Where the others come from:
+
+- `4 u^2 / v` in (2.9): 3 of the 4 are the second-order term of the period in (2.6); the last 1 is the higher (or lower) speed with which the satellite covers the stretch to `B`.
+- `-1/2`: the burns change the two speeds, which turns the relative velocity by `alpha`; the separation `(d1 + d2) sin(phi/2)` along `shat` then has a component in the new encounter plane.
+- `6 delta / a`: satellite 2's own period is longer than `T` by `3 delta T / a`, so `N` reference periods are not `N` of its own. This term depends on how the reference encounter is set up (both satellites are given the speed `v`).
+
+Baseline: `7 g / (2 v) = 7 * 24348.48 / (2 * 7585.09) = 11.235 m per (m/s)^2`, which is 1.12 mm for a 1 cm/s burn and 10.11 mm for 3 cm/s; `6 delta / a = 2.598e-5`, which is 6.33 mm on a 1 cm/s burn of satellite 2 and 18.98 mm on 3 cm/s. The same projection gives the time of closest approach, `t* = -(rho . w) / |w|^2 = -(d1 + d2) / (2v)` to first order: 0.0227 s for one small burn by satellite 1.
+
+What (2.10) neglects: the terms of third order in the burns, of which the largest is the `O(tau^3)` term of step 2 (about 5e-6 m), and the products of two tilts with the miss that were dropped in step 6 (below 1e-7 m in `xi`, up to 2.6e-6 m in `zeta`). The second group is of second order in the burns, but it multiplies the miss, tens to hundreds of metres, where the terms kept in (2.10) multiply the distance flown during the lead time.
+
+**Step 8. Effect on the collision probability.** From (1.5), `ln Pc = const - xm^2 / (2 sx^2) - ym^2 / (2 sy^2)`, so a small change `dxi` of the miss along `xihat` changes `Pc` by
+
+```
+dPc / Pc = - xi dxi / sx^2                                                              (2.11)
+```
+
+For two large burns, `xi = 1552.9 m` and `dxi = 18.98 mm` give `-1552.9 * 0.01898 / 115^2 = -2.2e-3`.
+
+**What is tested** (`matlab/tests/test_twobody.m`; numbers from `matlab/results/twobody_check.json`, written by `matlab/run_twobody_check.m`). Both satellites are propagated on their two-body orbits for the nine joint actions of the baseline, with `ode113` (relative tolerance 1e-13, absolute tolerance 1e-9) and, independently, with the universal-variable solution of Kepler's problem.
+
+| Joint action | `xi` from (2.5) (m) | propagated minus (2.5) (mm) | (2.10) minus (2.5) (mm) | relative change of `Pc` |
+|---|---|---|---|---|
+| N N | 92.000 | 0.006 | 0.000 | -2.8e-10 |
+| N S | 335.485 | 5.202 | 5.203 | -1.3e-4 |
+| N L | 822.455 | 8.865 | 8.867 | -5.5e-4 |
+| S N | 335.485 | 1.128 | 1.124 | -2.9e-5 |
+| S S | 578.970 | 6.325 | 6.326 | -2.8e-4 |
+| S L | 1065.939 | 9.987 | 9.990 | -8.0e-4 |
+| L N | 822.455 | 10.124 | 10.112 | -6.3e-4 |
+| L S | 1065.939 | 15.319 | 15.314 | -1.2e-3 |
+| L L | 1552.909 | 18.979 | 18.978 | -2.2e-3 |
+
+- (2.5) against the propagated `xi`: off by at most 18.98 mm (both large burns). As a fraction of the shift the error is at most 2.1e-5 (one small burn by satellite 2).
+- (2.10) against the propagated `xi`: largest difference 1.2e-5 m with `ode113` and 7.6e-6 m with the Kepler solution. The test bound is 2e-4 m.
+- `zeta` changes by at most 2.5e-6 m.
+- The two propagators agree to 1.4e-5 m in position after the lead time and to 1.3e-5 m in the miss vector. The Python construction of the same encounter (`export_matlab.py`, with the propagator of `conjce.maneuver`) agrees with the MATLAB one to 1.3e-5 m in the miss vector and 2.7e-9 s in the time of closest approach.
+- The table and the bullets above use the closest approach found by iteration on the two-body orbits, with the axes built from the velocities at that instant. The derivation uses a straight-line closest approach from the nominal time and the nominal axes. The test compares the two constructions: they differ by at most 4.5e-6 m. If the axes are rebuilt from velocities, the velocities have to be taken at the closest approach itself. From (2.8) the velocity directions at the nominal time are `t_i - (d_i / a) zetahat`, so their bisector is tilted out of the horizontal by `eta = (d1 + d2) / (2 a cos(phi/2))`, up to 1.1e-4 rad, and axes built from it are turned about `shat` by that angle; in them the radial component reads `zeta + eta xi`, which is 8.7 cm off for one large burn. By the closest approach, a time `t* = -(d1 + d2) / (2v)` later, gravity has turned both velocities by `v t* / a` and the bisector is horizontal again. `matlab/tests/test_simulink.m` checks this rotation on the output of the Simulink model for the nine joint actions: predicted and observed differences agree within 8.2e-7 m.
 
 Not tested: anything beyond two-body motion.
 
