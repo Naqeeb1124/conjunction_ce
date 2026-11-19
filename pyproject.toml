@@ -1,0 +1,10 @@
+[project]
+name = "conjce"
+version = "0.1.0"
+description = "Can operators learn a coordinator's maneuver recommendations for satellite conjunctions?"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

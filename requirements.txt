@@ -1,0 +1,8 @@
+numpy>=2.0
+scipy>=1.13
+matplotlib>=3.9
+cvxpy>=1.6
+highspy>=1.7
+clarabel>=0.9
+pytest>=8.0
+nashpy>=0.0.41
