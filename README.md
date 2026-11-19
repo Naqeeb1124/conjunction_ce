@@ -16,6 +16,8 @@ Start with **RESULTS.md**. Then:
 | `run_scaleup.py` | Runs the many-conjunctions batch (RESULTS.md 4.10) with its checks and writes `results/scaleup.json`; with `--figures` it also draws `figures/scaleup.png` |
 | `results/results.json` | Every number quoted in the documents, except those about many conjunctions |
 | `results/scaleup.json` | Every number about many conjunctions: RESULTS.md 4.10 and its summary in section 1, DERIVATIONS.md 7 |
+| `matlab/` | A MATLAB layer on top of the Python package: a port of the core model, a two-body check of the linear burn-to-miss rule (RESULTS.md 4.11), a Simulink model of one conjunction event built by a script, and four animations. It has its own `README.md` and its own checks (`run_tests.m`) |
+| `export_matlab.py` | Writes `matlab/params.json` (every model parameter) and `matlab/expected.json` (the numbers the MATLAB code has to reproduce) from the Python package, so that no parameter is typed twice |
 
 ## Run it
 
@@ -37,3 +39,5 @@ python -m venv .venv
 ```
 
 All random seeds are fixed, so the numbers in RESULTS.md are reproduced exactly, apart from the wall-clock seconds of section 4.10; two complete runs gave identical results apart from wall-clock times.
+
+The MATLAB layer has its own commands and its own 98 checks; see `matlab/README.md`. It needs MATLAB with the Optimization Toolbox, and Simulink for one model, and was run with R2024b.

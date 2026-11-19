@@ -2,7 +2,7 @@
 
 **Can operators learn to trust a coordinator? Maneuver recommendations for a two-operator satellite conjunction.**
 
-This project is about civil space traffic coordination. Everything below comes from `run_all.py` with fixed random seeds; the numbers are in `results/results.json`, except section 4.10, which comes from `run_scaleup.py` and `results/scaleup.json`. A statement is made here only if a test or a run in this repository shows it. Formulas are derived in DERIVATIONS.md.
+This project is about civil space traffic coordination. Everything below comes from `run_all.py` with fixed random seeds; the numbers are in `results/results.json`, except section 4.10, which comes from `run_scaleup.py` and `results/scaleup.json`, and section 4.11, which comes from the MATLAB layer in `matlab/` and `matlab/results/`. A statement is made here only if a test or a run in this repository shows it. Formulas are derived in DERIVATIONS.md.
 
 ## 1. The question and the short answer
 
@@ -433,6 +433,68 @@ Left: wall-clock seconds (log scale, one laptop) against the number of conjuncti
 
 **What this shows and what it does not.** In this model, where costs add up over conjunctions, a batch of 50 conjunctions is 50 small programs, and that is checked against the joint programs as far as they can be built (K = 5 and K = 8). Under the exact-one restriction the coordinator can only choose among stable designations, which could be announced publicly; over 200 synthetic batches that costs on average 5.3% against the best public rules and leaves the private optima, with the rule known, 24.4% below. Among designations of equal cost, balancing lowers the largest number of burns of one satellite at no cost to the coordinator. It does not show anything about learning on the batch, about real conjunction statistics (pairs are drawn uniformly and every game is a synthetic draw, so the same satellite has an independently drawn value, propellant budget and disruption cost in each of its conjunctions), about margins or misjudged costs, or about what happens after a burn changes the later conjunctions.
 
+### 4.11 Two-body check of the burn-to-miss rule (MATLAB layer)
+
+Every result above uses the linear rule (2.5) of DERIVATIONS.md for how far a burn moves the pass point. This section replaces it by a two-body propagation of both satellites and asks whether anything in the game changes. It comes from the MATLAB layer in `matlab/` (`run_twobody_check.m`; numbers in `matlab/results/twobody_check.json`). MATLAB reads the model parameters and the Python reference numbers from `matlab/params.json` and `matlab/expected.json`, both written by `export_matlab.py`, so no parameter is typed a second time.
+
+**Method.** Both satellites start from their states at the nominal closest approach, are propagated back two orbits on their two-body orbits, receive their burns along their own velocity (posigrade for satellite 1, retrograde for satellite 2, the convention of DERIVATIONS.md 2.5) and are propagated forward again with `ode113` (relative tolerance 1e-13, absolute tolerance 1e-9). The closest approach is then found by iteration on the two orbits, and the miss vector is expressed in the encounter plane at that instant. A second propagator, the analytic universal-variable solution of Kepler's problem, repeats the calculation.
+
+**(a) The linear rule is off by at most 19 mm.**
+
+| Op. 1, op. 2 | Pass distance, linear rule (m) | Propagated minus linear (mm) | Collision probability, linear rule | Relative change with the propagated miss |
+|---|---|---|---|---|
+| no burn, no burn | 92.000 | 0.006 | 1.4881e-3 | -2.8e-10 |
+| no burn, small | 335.485 | 5.202 | 2.9134e-5 | -1.3e-4 |
+| no burn, large | 822.455 | 8.865 | 1.6223e-14 | -5.5e-4 |
+| small, no burn | 335.485 | 1.128 | 2.9134e-5 | -2.9e-5 |
+| small, small | 578.970 | 6.325 | 6.4600e-9 | -2.8e-4 |
+| small, large | 1065.939 | 9.987 | 4.6142e-22 | -8.0e-4 |
+| large, no burn | 822.455 | 10.124 | 1.6223e-14 | -6.3e-4 |
+| large, small | 1065.939 | 15.319 | 4.6142e-22 | -1.2e-3 |
+| large, large | 1552.909 | 18.979 | 5.4221e-43 | -2.2e-3 |
+
+"Pass distance" is the component of the miss vector along the bisector of the two velocity directions, the only component a burn moves (DERIVATIONS.md 2.4).
+
+- The error is largest when both do the large burn: 18.98 mm on a shift of 1,461 m. As a fraction of the shift it is at most 2.1e-5 (one small burn by operator 2).
+- The radial component of the miss vector moves by at most 2.5e-6 m.
+- The errors are understood. A second-order formula, derived step by step in DERIVATIONS.md 2.7, reproduces all nine within 1.2e-5 m. It adds a term in the square of the burn (1.1 mm for 1 cm/s, 10.1 mm for 3 cm/s, with opposite signs for the two operators) and a term proportional to operator 2's burn (6.3 mm per cm/s). The second comes from the way the encounter is set up: satellite 2 passes 30 m above satellite 1 with the same speed, so its period is slightly longer.
+- Cross-checks: the two propagators agree within 1.3e-5 m in the miss vector, and the same construction in Python (`export_matlab.py`) agrees with the MATLAB one within 1.3e-5 m. The numerical error of the propagation is therefore about 0.01 mm; the no-burn row, where the exact difference is zero, shows 0.006 mm of it.
+
+**(b) No operator's best reply changes.** The propagated miss is larger than the linear one in every row, so every collision probability is slightly lower, by 2.8e-10 to 2.2e-3 of its value. In absolute terms the largest change is 3.8e-9 (one small burn by operator 2: 2.9134e-5 becomes 2.9130e-5). An operator's cost is its own maneuver cost plus the collision probability, both as fractions of the satellite's value, so no cost entry moves by more than 3.8e-9. The smallest gap between an operator's best and second-best reply to any action of the other is 1.7e-4, about 44,000 times larger. With the propagated probabilities all six best replies are the same, the two pure equilibria are the same, and in the mixed equilibrium the probability that nobody burns moves from 4.91397% to 4.91400%.
+
+**(c) The coordinator's rules.** The private rule without a margin leaves operator 1 exactly indifferent between following "small burn" and not burning (sections 4.2 and 8), and any change in the numbers tips an exact tie. With the propagated probabilities the constraint "operator 1, told small burn, deviation no burn" is violated by 2.2e-9, in the units of the constraint (fraction of the satellite's value, weighted by the 85% probability of that recommendation): about 45 cents per event on a $200M satellite. This is the only incentive whose sign changes, and it is the knife-edge of section 8, not an effect of the size of the correction. The rules with a margin keep all 12 obedience constraints. On the constraint that tips for the rule without a margin, their slack is the margin times the probability of that recommendation: 1.4e-4 (margin 1.8e-4 on every constraint, probability 78%), 2.2e-4 (targeted margin 3e-4, 74%) and 4.0e-4 (targeted margin 6e-4, 67%). The correction uses up 1.6e-9, 1.2e-9 and 4.5e-10 of it, at most 1.1e-5 of the slack. The public rule is not affected. Solving the coordinator's program again with the propagated probabilities changes its optimal cost from 0.02705807 to 0.02705735 m/s (by -7.3e-7) and no entry of the rule by more than 1.7e-6.
+
+**(d) Monte Carlo check of the collision probability.** A plain count cannot check these numbers with 2,000 samples: at 1.5e-3 it expects three hits and has a standard error of 58%, and after one small burn it expects 0.06 hits. The check therefore uses importance sampling (DERIVATIONS.md 1.8). Relative positions are drawn uniformly on a disc of twice the hard-body radius around the collision point and weighted by the Gaussian density, and a sample is a hit if the two satellites, propagated on their two-body orbits from that position, come closer than the hard-body radius. With 2,000 samples per joint action:
+
+| Op. 1, op. 2 | Foster integral at the propagated miss | Monte Carlo | Difference in standard errors |
+|---|---|---|---|
+| no burn, no burn | 1.4881e-3 | 1.4647e-3 | -0.41 |
+| no burn, small | 2.9130e-5 | 3.0938e-5 | +1.57 |
+| no burn, large | 1.6214e-14 | 1.5552e-14 | -1.04 |
+| small, no burn | 2.9133e-5 | 2.8775e-5 | -0.32 |
+| small, small | 6.4582e-9 | 6.0309e-9 | -1.75 |
+| small, large | 4.6105e-22 | 4.2419e-22 | -2.09 |
+| large, no burn | 1.6213e-14 | 1.6876e-14 | +1.02 |
+| large, small | 4.6086e-22 | 4.5343e-22 | -0.40 |
+| large, large | 5.4101e-43 | 5.4378e-43 | +0.12 |
+
+Each estimate has a standard error of 3.7% to 4.2% of the probability, and all nine are within 2.1 standard errors of the integral (the test allows 4). For every one of the 18,000 samples the two-body hit test and the test "inside the hard-body disc in the encounter plane" give the same answer: over the fraction of a second the encounter lasts, the curvature of the orbits makes no difference. For comparison, a plain count on the no-burn case gives 4 hits in 2,000 samples, with an exact 95% interval of 5.5e-4 to 5.1e-3; it contains the integral's value and is too wide to check it.
+
+This check covers the numerical integral and the straight-line assumption, to a few percent. It does not cover the Gaussian shape or the size of the covariance, because the samples are weighted with the model's own Gaussian, and it is much too coarse to see the 0.2% difference between the linear and the propagated miss.
+
+**(e) The same event as a Simulink model.** `matlab/simulink/build_conjunction_sim.m` creates `conjunction_sim.slx` from nothing, block by block, so the model can be rebuilt from the script at any time. It follows one conjunction event: a coordinator block draws a joint recommendation from the rule, a burn block changes each satellite's velocity along its direction of flight, two integrator chains propagate the two-body motion of both satellites from the burn time over the two orbits, and the last block computes the closest-approach vector from the final relative position and velocity (`matlab/figures/conjunction_sim_model.png` shows the diagram). The model uses built-in blocks only and Simulink's `ode113` with the tolerances of the MATLAB propagation (198 to 213 steps per run). For the nine joint actions its miss vector agrees with the MATLAB propagation of (a) within 9.1e-6 m along the bisector and 4.6e-6 m radially; the test allows 1e-3 m. The model starts from the two states at the burn time, which `run_conjunction_sim.m` takes from the analytic Kepler solution, and integrates forward; the MATLAB reference integrates both ways with `ode113`. This is a second integration of the same two-body equations in another tool. It adds no result of its own.
+
+**(f) Animations.** `matlab/run_visuals.m` renders four animations into `matlab/figures/`, each as MP4, GIF and a final-frame PNG:
+
+- `encounter_plane`: the encounter plane at closest approach, where each burn moves the uncertainty ellipse away from satellite 1;
+- `orbits_3d`: the two orbits through the closest approach, without burns and with the coordinator's most frequent recommendation, a small burn by both;
+- `gallery`: twelve conjunction geometries side by side, each with the coordinator's recommendation and its outcome;
+- `learning`: the learning curves of section 4.2, drawn from the stored Python results without recomputing them.
+
+The main numbers of each animation (pass distances, collision probabilities, recommendations, learning curves) are also written to `matlab/results/viz_*.json` and compared by a test with their source: the core model, the two-body check or the Python reference. The tests do not judge how the animations look. In the gallery, seven of the twelve cases are marked "(tie)": there the mirror-image rule, in which the other operator burns, is also an equilibrium and costs the coordinator exactly the same (section 7, item 13).
+
+![Gallery of twelve conjunctions](matlab/figures/gallery.png)
+
 ## 5. The recommendation as a signal
 
 **What an operator learns from its instruction.** In a correlated equilibrium the coordinator sends each operator one private signal: its recommended action. The signal tells the operator nothing about the physical situation, which both already know. It tells it something about *the other operator's instruction*. In the baseline private rule, an operator told "small burn" infers that the other was told "no burn" with probability 26% (operator 1) or 19% (operator 2); an operator told "no burn" infers that the other was certainly told to burn. The whole effect of the rule is carried by those posterior beliefs. This is also why the targeted margin sits where it does: only "told small burn" leaves an operator unsure about the other, so only there can a learned belief be wrong.
@@ -485,9 +547,18 @@ Verified by a test in this repository:
 - the baseline has the structure section 2 says it has (design checks in `tests/test_model.py`);
 - the batch model of section 4.10 (`tests/test_batch.py`): the batch generator (fleets, distinct pairs of different operators, times inside the window, same seed same batch, nesting), the propositions P1, P2, P3 (including infeasibility with a conjunction that has no stable designation, the two tie examples of DERIVATIONS.md 7.4 and the absence of ties in the master batch) and P5 at small sizes, the deterministic burden program against brute force and against the randomised value rounded up (master batch at K = 20 and 50, all 200 further batches), the side the fixed tie-break designates (a hand-made case with very unequal disruption costs, and mirror images of the first 10 master conjunctions, which must designate the opposite side), the carry-over count on a hand-made batch, and the direct best public rule against `games.solve_public`.
 
-Shown by a run, with fixed seeds, but not by a pass/fail test: every number in section 4. In particular the agreement of simulation and exact enumeration over all 96 compared quantities (largest difference 2.5 standard errors; the test allows 4), the crossovers 13, 1, 96 and 97, and the conflict found in section 4.8. Two complete runs of `run_all.py --figures` gave identical results apart from wall-clock times. `run_scaleup.py` repeats the checks of section 4.10 at every K within the size cap and writes no results file if one fails; a second run gave results identical to `results/scaleup.json` apart from wall-clock times.
+**MATLAB layer.** `matlab/run_tests.m` runs 98 checks and all pass: port of the core model 30, two-body check 24, Simulink model 7, animations 37. Verified by them:
 
-Not verified: anything about real operators, real conjunction data or real costs; the Hoeffding bound under convention B; whether a rule outside the two families (other than the three-action grid of 4.2 (c)) does better.
+- the MATLAB port against the Python numbers in `matlab/expected.json`: the derived orbit quantities, the tables of pass distance, collision probability and costs, the obedience constraints, the coordinator's rule and its cost under each of the four private schemes, the mixed equilibrium, and the collision-probability tables and optimal costs of the twelve gallery conjunctions. The observed relative differences are below 2e-14; the tests allow 1e-6 (relative, or absolute for the entries of a rule), and a relative 1e-3 for collision probabilities. The collision-probability function is also checked against MATLAB's own two-dimensional quadrature;
+- the two-body check of section 4.11: the two propagators against each other and against the same construction in Python (allowed 1e-3 m, observed 1.4e-5 m), the propagated pass distance against the second-order formula (2.10) of DERIVATIONS.md (allowed 2e-4 m, observed 1.2e-5 m), the relative error of the linear rule (allowed 1e-4, observed 2.1e-5), the Monte Carlo estimates (allowed 4 standard errors, observed 2.1), and the statements of 4.11 (b) and (c): no best reply and no pure equilibrium changes, the public rule and the rules with a margin keep every obedience constraint, and the tie of the rule without a margin tips by less than 1e-8;
+- the Simulink model: that the script builds it, that it issues the joint action it is given and otherwise draws from the rule by inverse CDF, that its miss vector is within 1e-3 m of the MATLAB propagation for the nine joint actions (observed 9.1e-6 m), and the rotation of the axes described in section 7, item 12;
+- the animations: that each exists as MP4, GIF under 8 MB and PNG, and that the main numbers each one shows (pass distances, collision probabilities, recommendations, learning curves) equal their source (the core model, the two-body check or the Python reference), including the tie marks of the gallery.
+
+Shown by `matlab/run_twobody_check.m` and stored in `matlab/results/twobody_check.json`, but not by a pass/fail test: the individual entries of the tables of section 4.11 and the amounts quoted in 4.11 (c). The MATLAB layer was run on one machine with one release (R2024b).
+
+Shown by a run, with fixed seeds, but not by a pass/fail test: every number in sections 4.1 to 4.10. In particular the agreement of simulation and exact enumeration over all 96 compared quantities (largest difference 2.5 standard errors; the test allows 4), the crossovers 13, 1, 96 and 97, and the conflict found in section 4.8. Two complete runs of `run_all.py --figures` gave identical results apart from wall-clock times. `run_scaleup.py` repeats the checks of section 4.10 at every K within the size cap and writes no results file if one fails; a second run gave results identical to `results/scaleup.json` apart from wall-clock times.
+
+Not verified: anything about real operators, real conjunction data or real costs; the Hoeffding bound under convention B; whether a rule outside the two families (other than the three-action grid of 4.2 (c)) does better; anything beyond two-body motion (section 4.11); how the animations look.
 
 ## 7. What failed or surprised along the way
 
@@ -501,11 +572,14 @@ Not verified: anything about real operators, real conjunction data or real costs
 8. **The first margin families were too narrow.** The first results used the same margin on every constraint and a second family that put it on every constraint whose sign depends on the other operator's action; both had a low cap. They gave "private beats public only after several tens of past events" and "no private rule survives 30% cost uncertainty". A two-parameter check showed that both statements were artefacts of the caps. The targeted family replaced the second family, and the numbers above are those of the targeted family. It was introduced after seeing results; it has one parameter, and wherever a margin is chosen it is chosen on one sample and evaluated on an independent one.
 9. **An independent review found real problems.** Three tests had been left stale by the change of family (repaired; none weakened); the explanation of the scenario program's infeasibility was wrong (item 3); one function needed about 11 GB of memory (now chunked, same output); the dependence on the starting convention had not been looked at (4.2 (b)); the instance family mixed two public benchmarks (4.6); the statistical safeguards were not pinned by tests (43 tests added, 168 in all). The review reproduced every number it re-derived.
 10. **The simulation is now cross-checked by exact enumeration** (section 6), and two complete runs give identical results.
+11. **A plain Monte Carlo count could not serve as the second check of section 4.11.** With 2,000 samples and a probability of 1.5e-3 it expects three hits. The check uses importance sampling instead (DERIVATIONS.md 1.8) and reports the plain count only for comparison.
+12. **The first comparison of the Simulink model with the MATLAB propagation was off by 8.7 cm in the radial component.** The model's miss vector was right. Its output axes had been built from the two velocities at the nominal time instead of at the closest approach. Between those two instants both velocities turn, and the axes rotate about the relative velocity by `(d1 + d2) / (2 a cos(phi/2))`, here 1.05e-4 rad, which is 8.7 cm on a pass distance of 822 m (DERIVATIONS.md 2.7). The definition of the axes was corrected; the tolerance and the reference were not changed, and the rotation is now checked by a test of its own.
+13. **Seven of the twelve conjunctions in the gallery animation have two optimal rules.** The coordinator's cost does not depend on which operator burns. So when the best rule is a fixed assignment in which only one operator burns, and the mirror image in which only the other burns is also an equilibrium, the linear program has a tie. In two of the seven (cases 2 and 4) MATLAB's `linprog` and the Python solver return different optimal rules, with costs equal to 12 digits. The first version of the test required the same recommendation and failed on those two; it now requires the same recommendation or an exact tie, and the figure marks all seven cases.
 
 ## 8. Limitations
 
 - **Collision probability.** 2D short-encounter model: straight-line relative motion, Gaussian position uncertainty that is constant during the encounter, spherical hard bodies. Values below about 1e-10 are properties of a Gaussian tail and should not be read as physical.
-- **Maneuver mapping.** Linearised (Clohessy-Wiltshire), two-body, burns exactly a whole number of orbits before closest approach, tangential only, burn directions fixed in advance. Equal burns in the same sense cancel (DERIVATIONS.md 2.5); choosing the direction is a coordination problem the model leaves out.
+- **Maneuver mapping.** Linearised (Clohessy-Wiltshire), two-body, burns exactly a whole number of orbits before closest approach, tangential only, burn directions fixed in advance. Section 4.11 measures the linearisation against two-body propagation (at most 19 mm); nothing beyond two-body motion (drag, the Earth's oblateness, third bodies) is modelled or tested. Equal burns in the same sense cancel (DERIVATIONS.md 2.5); choosing the direction is a coordination problem the model leaves out.
 - **Costs.** Synthetic. The values, the propellant pricing rule and the disruption costs are assumptions, and so are the lognormal uncertainty and its size. Published scale factors for catalogue covariances run over a wider range (about 0.25 to 4 on the sigmas in some operational tools) than the 10% used here; at 20% and above the picture is worse for every rule (sections 4.3, 4.7).
 - **Who knows what.** Operators are assumed to know their true costs and the true covariance scale; the coordinator knows only the nominal ones. Section 4.9 runs the other reading (operators act on published collision probabilities) for the known-rule case only; it was not combined with learning, with the margin selection of section 4.4 or with the safety constraint.
 - **Behaviour when a recommendation is broken.** An operator who prefers to deviate plays its best response assuming the other follows. This is a one-step model, not an equilibrium of the game the rule induces.
@@ -537,3 +611,15 @@ Not verified: anything about real operators, real conjunction data or real costs
 ```
 
 The first runs the 210 tests. The second recomputes every number in sections 1 to 4.9 and redraws the first five figures (about 190 s on the machine used here). The third recomputes section 4.10, writes `results/scaleup.json` and draws the sixth figure, `figures/scaleup.png` (about 15 s; `runtime_seconds` in the stored file is 14.4). `python -m conjce.figures` redraws the first five figures from the stored results.
+
+The MATLAB layer (section 4.11) needs MATLAB with the Optimization Toolbox, and Simulink for the model. It was run with R2024b.
+
+```
+.venv\Scripts\python export_matlab.py
+matlab -batch "run_twobody_check" -sd matlab
+matlab -batch "setup_paths(); run_simulink_check;" -sd matlab
+matlab -batch "run_visuals" -sd matlab
+matlab -batch "run_tests" -sd matlab
+```
+
+The first line writes `matlab/params.json` and `matlab/expected.json` from the Python package. The next three recompute `matlab/results/` and `matlab/figures/`: the two-body check of section 4.11, the Simulink comparison and the four animations. The last runs the 98 checks of the MATLAB layer. `matlab/README.md` has the details and the run times.
