@@ -1,7 +1,6 @@
 """The baseline two-operator conjunction and its cost model.
 
-Everything here is synthetic.  The numbers were fixed before any comparison between coordination
-schemes was run.
+All numbers are synthetic.
 
 Indexing convention used across the package: joint actions are (a1, a2) with a_i in {0, 1, 2}
 meaning no burn, small burn, large burn, and every 3x3 table is indexed [a1, a2].
@@ -21,22 +20,22 @@ ACTION_NAMES = ("no burn", "small burn", "large burn")
 
 @dataclass(frozen=True)
 class Scenario:
-    # --- orbit and encounter geometry -------------------------------------------------------
+    # orbit and encounter geometry
     altitude: float = 550e3              # m, both satellites near-circular at this altitude
     crossing_angle_deg: float = 90.0     # angle between the two velocity vectors at closest approach
     lead_orbits: float = 2.0             # burns are executed this many orbits before closest approach
     burns: tuple = (0.0, 0.01, 0.03)     # m/s: none, small, large (tangential, miss-increasing sense)
-    # --- encounter plane (xi = bisector of the velocity directions, zeta = radial) ----------
+    # encounter plane (xi = bisector of the velocity directions, zeta = radial)
     sigma_xi: float = 115.0              # m, combined 1-sigma along xi
     sigma_zeta: float = 40.0             # m, combined 1-sigma along zeta
     hbr: float = 5.0                     # m, combined hard-body radius
     miss_xi: float = 92.0                # m, nominal miss vector, xi component
     miss_zeta: float = 30.0              # m, nominal miss vector, zeta component
-    # --- operators (index 0 = operator 1, index 1 = operator 2) -----------------------------
+    # operators (index 0 = operator 1, index 1 = operator 2)
     value: tuple = (200e6, 80e6)         # USD lost by the operator if its satellite is destroyed
     dv_budget: tuple = (100.0, 100.0)    # m/s lifetime budget; propellant is priced at value / budget
     disruption: tuple = (60e3, 16e3)     # USD per maneuver, independent of its size
-    # --- coordinator -------------------------------------------------------------------------
+    # coordinator
     lam: float = 1000.0                  # m/s of total delta-v the coordinator would spend per unit of Pc
     pc_threshold: float = 1e-4           # the usual maneuver threshold, used for reporting
 
@@ -47,7 +46,7 @@ class Scenario:
         if not (np.isfinite(lo) and lo > 0 and lo.is_integer()):
             raise ValueError(f"lead_orbits must be a positive whole number of orbits, got {self.lead_orbits!r}")
 
-    # derived quantities --------------------------------------------------------------------
+    # derived quantities
     @property
     def sma(self) -> float:
         return mv.R_EARTH + self.altitude

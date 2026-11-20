@@ -1,7 +1,7 @@
 """Figure of the scale-up (many conjunctions at once), drawn from results/scaleup.json.
 
-The style (palette, sizes, fonts, title layout) is imported from ``conjce.figures``, which is not
-changed.  Every number in the figure text is read from the results file.
+The style (palette, sizes, fonts, title layout) is imported from ``conjce.figures``.  Every number
+in the figure text is read from the results file.
 
     .venv\\Scripts\\python -m conjce.batch_figures
 """
@@ -45,7 +45,7 @@ def make(res, path):
              ha="left", va="top", linespacing=1.2)
     fig.text(0.035, 0.84, subtitle, fontsize=F.FS_SUB - 1, color=F.INK2, ha="left", va="top")
 
-    # ---- left: wall-clock against K -------------------------------------------------------------
+    # left: wall-clock against K
     ax = fig.add_axes([0.075, 0.12, 0.43, 0.56])
     for name, words, formula, color in LINES:
         k, t = _series(res, name)
@@ -78,7 +78,7 @@ def make(res, path):
     ax.set_title(f"Solve time; rings: last K under the cap of {cap:,} variables", loc="left", pad=30,
                  fontsize=F.FS_PANEL - 1)
 
-    # ---- right: satellites by number of burns ---------------------------------------------------
+    # right: satellites by number of burns
     ax = fig.add_axes([0.62, 0.12, 0.35, 0.56])
     h_fix = np.array(bm["histogram_fixed_tie_break"])
     h_det = np.array(bm["histogram_balanced_deterministic"])

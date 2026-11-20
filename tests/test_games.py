@@ -76,11 +76,10 @@ def test_support_enumeration_returns_exact_equilibria_and_an_odd_number_of_them(
 def test_support_enumeration_against_nashpy_on_random_games():
     """Cross-check against the independent ``nashpy`` library.
 
-    History: the first version of this test required equal counts and failed.  In 7 of these 40
-    games nashpy returns an even number of equilibria (twice it returns none), which cannot be
-    the full set, and it warns about this itself; every equilibrium it misses satisfies the
-    definition to 1e-16 (previous test).  So the comparison is: nothing nashpy finds is missing
-    here, and the two sets coincide whenever nashpy's count is odd.
+    In 7 of these 40 games nashpy returns an even number of equilibria (twice it returns none),
+    which cannot be the full set, and it warns about this itself; every equilibrium it misses
+    satisfies the definition to 1e-16 (previous test).  So the comparison is: nothing nashpy
+    finds is missing here, and the two sets coincide whenever nashpy's count is odd.
     """
     nash = pytest.importorskip("nashpy")
     rng = np.random.default_rng(7)
@@ -186,7 +185,6 @@ def test_extra_linear_constraint_is_enforced():
     assert np.max(G.obedience_slack(res["x"], C1, C2)) <= 1e-8
 
 
-# --------------------------------------------------------------------------- added in step 1
 @pytest.mark.parametrize("profile", [(0, 1), [0, 1], np.array([0, 1]), (2, 2), [1, 0]])
 def test_point_table_puts_a_single_one_whatever_the_profile_type(profile):
     x = G.point_table(profile)

@@ -17,7 +17,7 @@ STEP_UNIFORM = 1e-5         # margins are fractions of the satellite's value, li
 STEP_TARGETED = 2e-5
 
 
-# ------------------------------------------------------------------------------- helpers
+# helpers
 def nominal(scn: M.Scenario):
     c1, c2 = M.cost_tables(scn)
     return c1, c2, M.coordinator_cost_table(scn), M.pc_table(scn)
@@ -92,7 +92,7 @@ def _cost_stats(scn, y, pc=None):
     return m
 
 
-# ------------------------------------------------------------------------------- E1
+# E1
 def nominal_comparison(scn: M.Scenario) -> dict:
     """Each rule's outcome if operators know the rule and the coordinator knows the costs."""
     schemes, _, _ = baseline_schemes(scn)
@@ -106,7 +106,7 @@ def nominal_comparison(scn: M.Scenario) -> dict:
     return out
 
 
-# ------------------------------------------------------------------------------- E2
+# E2
 def learning_curve(scn, x, ks=K_GRID, n_rep=40000, seed=0) -> list:
     """Realised outcome of rule x when both operators learned it from k past events (costs known)."""
     c1, c2, _, _ = nominal(scn)
@@ -214,7 +214,7 @@ def two_parameter_grid(scn, grid_n: int):
 
 def two_parameter_check(scn, targeted_family, ks=(10, 15, 20, 30, 50, 100, 300, 1000), grid_n=30,
                         n_select=8000, n_eval=100000, seed=9) -> dict:
-    """How much does the one-parameter targeted family leave on the table?
+    """Realised cost of the one-parameter targeted family against the best two-parameter table.
 
     In the baseline every private rule uses three joint actions: both small, only operator 1,
     only operator 2.  Such a table is fixed by two numbers, alpha_1 and alpha_2: the probability,
@@ -246,7 +246,7 @@ def two_parameter_check(scn, targeted_family, ks=(10, 15, 20, 30, 50, 100, 300, 
     return {"alpha_thresholds": a_star.tolist(), "grid_n": grid_n, "rows": rows}
 
 
-# ------------------------------------------------------------------------------- E3
+# E3
 def cost_uncertainty_eval(scn, schemes: dict, games: dict) -> dict:
     """Known rule, unknown costs: the coordinator used nominal costs, the true game is a sample."""
     out = {}
@@ -393,7 +393,7 @@ def safety_constraint_check(scn, sig_k_list=(0.1, 0.2, 0.3), delta=0.05, n=20000
     (estimated from n draws).  The constraint is  sum_a x(a) * (1 - q(a)) <= delta : the
     probability, over both the coordinator's draw and the covariance scale, that the recommended
     joint action leaves Pc above the threshold is at most delta.  It is linear in x.
-    The n draws are made at once (same stream as before) and evaluated ``chunk`` at a time.
+    The n draws are made at once and evaluated ``chunk`` at a time.
     """
     c1, c2, obj, _ = nominal(scn)
     out = {"delta": delta, "threshold": scn.pc_threshold, "rows": []}
@@ -417,7 +417,7 @@ def safety_constraint_check(scn, sig_k_list=(0.1, 0.2, 0.3), delta=0.05, n=20000
     return out
 
 
-# ------------------------------------------------------------------------------- E4
+# E4
 def learning_with_cost_uncertainty(scn, families: dict, schemes: dict, ks=(15, 30, 100, 300, 1000, None),
                                    cost_sigmas=(0.1, 0.3), sig_k=0.1, n_select=20000, n_eval=50000,
                                    seed=3) -> dict:
@@ -446,9 +446,9 @@ def learning_with_cost_uncertainty(scn, families: dict, schemes: dict, ks=(15, 3
     return out
 
 
-# ------------------------------------------------------------------------------- E5
+# E5
 def random_instance(rng: np.random.Generator) -> M.Scenario:
-    """One draw from the instance family (declared before any result was looked at)."""
+    """One draw from the instance family."""
     sx = rng.uniform(80.0, 160.0)
     sz = rng.uniform(25.0, 60.0)
     log_u = lambda lo, hi: float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
@@ -491,7 +491,8 @@ def private_vs_public_family(n_instances=300, seed=4) -> dict:
     The main benchmark is ``games.solve_public_hull``: the best mixture over all Nash equilibria,
     mixed ones included.  ``summary["pure_only_benchmark"]`` repeats the statistics against
     ``games.solve_public`` (pure equilibria only), the public rule used in the baseline
-    experiments.  The extra benchmark draws no random numbers, so the instances are unchanged.
+    experiments.  The pure-only benchmark draws no random numbers, so both benchmarks see the same
+    instances.
     """
     rng = np.random.default_rng(seed)
     rows = []
@@ -545,7 +546,7 @@ def private_vs_public_family(n_instances=300, seed=4) -> dict:
     return {"summary": summary, "rows": rows}
 
 
-# ------------------------------------------------------------------------------- E6
+# E6
 def _obedience_feasible(A) -> bool:
     """Is there a probability table x with A @ x <= 0?  (Plain HiGHS feasibility solve.)"""
     from scipy.optimize import linprog
@@ -663,7 +664,7 @@ def scenario_program_check(scn, eps=0.05, beta=1e-6, d=9, seed=5, sig_cost=0.3, 
             run.update(table=res["x"].tolist(), nominal_cost=res["objective"],
                        test_violation=float(np.mean(ev["obey"] < 1 - 1e-9)))
         else:
-            # why: an irreducible set of clashing obedience constraints (None if the plain
+            # an irreducible set of clashing obedience constraints (None if the plain
             # feasibility solve disagrees with the optimisation and finds the program feasible)
             sub = infeasible_subset(g["c1"], g["c2"])
             run["conflict"] = describe_conflict(g, sub) if sub is not None else None
@@ -671,7 +672,7 @@ def scenario_program_check(scn, eps=0.05, beta=1e-6, d=9, seed=5, sig_cost=0.3, 
     return out
 
 
-# ------------------------------------------------------------------------------- E7
+# E7
 def published_pc_variant(scn, schemes: dict, n=10000, seed=8,
                          levels=((0.1, 0.05), (0.1, 0.2), (0.1, 0.3), (0.3, 0.1), (0.0, 0.3))) -> list:
     """Who knows the covariance?  Two readings of the same sampled true games.

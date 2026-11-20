@@ -11,8 +11,8 @@ Orbital Collision Probability for Short-Term Encounters", J. Guidance, Control, 
 The numbers were taken from the Orekit regression test that encodes that benchmark
 (Laas2015Test.java, CS GROUP, https://github.com/CS-SI/Orekit) and, for Chan 1-12, cross-checked
 against the authors' JNCF 2014 slides and LLNL-TR-827434 (Bernstein et al., 2021), which give the
-same four-digit values.  The JGCD paper itself could not be opened when this test was written, so
-the table number inside the paper is not verified.
+same four-digit values.  The JGCD paper itself was not consulted, so the table number inside the
+paper is not verified.
 
 The 3D case comes from the NASA CARA Analysis Tools unit test for Pc2D_Foster
 (https://github.com/nasa/CARA_Analysis_Tools), which states a relative test accuracy of 1e-3.

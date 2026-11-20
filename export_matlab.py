@@ -180,7 +180,7 @@ def main():
     scn = M.BASELINE
     base = game(scn)
 
-    # ---- recomputed here versus stored by run_all.py ------------------------------------------
+    # recomputed here versus stored by run_all.py
     stored = res["baseline"]
     for key in ("pc_table", "miss_xi_table", "cost_op1", "cost_op2", "coordinator_cost_table",
                 "maneuver_cost_fraction"):
@@ -249,7 +249,7 @@ def main():
         "learning": learning,
     }
 
-    # ---- gallery: the first draws of the instance family ---------------------------------------
+    # gallery: the first draws of the instance family
     rng = np.random.default_rng(GALLERY_SEED)
     gallery_params, gallery_expected = [], []
     family_rows = res["instance_family"]["rows"]

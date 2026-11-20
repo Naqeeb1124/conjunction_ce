@@ -15,7 +15,7 @@ OBJ = M.coordinator_cost_table(S)
 TIE = 1e-9 * max(np.abs(C1).max(), np.abs(C2).max())
 
 
-# ------------------------------------------------------------------ simulation against exact
+# Simulation against exact enumeration
 def test_simulation_agrees_with_exact_enumeration_on_the_baseline_rules():
     """Both conventions; uniform-margin rule at 1e-4 and targeted rule at 6e-4; k = 5 and 50;
     P(both follow), P(each follows) and every cell of y within 4 standard errors."""
@@ -48,7 +48,7 @@ def test_simulation_agrees_with_exact_on_a_full_support_table():
             assert np.all(np.abs(m - ex["y"]) <= 4 * sd / math.sqrt(n) + 1e-12), (start, k)
 
 
-# ------------------------------------------------------------------ hand-checkable cases
+# Hand-checkable cases
 @pytest.mark.parametrize("start", I.STARTS)
 def test_point_table_on_a_nash_profile_is_always_followed(start):
     profiles = G.pure_nash(C1, C2)
@@ -167,7 +167,7 @@ def test_history_count_and_limit():
     assert I.n_histories(x4, 300, "uniform") <= I.MAX_HISTORIES
 
 
-# ------------------------------------------------------------------ exact_checks.run pieces
+# Pieces of exact_checks.run
 def test_two_parameter_grid_matches_the_experiment_construction():
     tables, alphas, a_star = X.two_parameter_tables(S, grid_n=5)
     assert len(tables) == 25

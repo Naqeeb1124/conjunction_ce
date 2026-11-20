@@ -27,7 +27,7 @@ def conjs(master):
     return master.conjunctions
 
 
-# ----------------------------------------------------------------------------- generator
+# Generator
 def test_fleets_and_pair_count():
     assert np.bincount(B.OPERATOR_OF).tolist() == [12, 8, 6, 4]
     assert [int(B.OPERATOR_OF[i]) for i in (0, 11, 12, 19, 20, 25, 26, 29)] == [0, 0, 1, 1, 2, 2, 3, 3]
@@ -83,7 +83,7 @@ def test_stable_designations_are_exact_one_pure_equilibria(conjs):
             assert (e[0] == 0) != (e[1] == 0)          # exactly one side burns
 
 
-# ----------------------------------------------------------------------------- P1
+# P1
 @pytest.mark.parametrize("K", B.P1_KS)
 def test_p1_single_slot_deviations_are_enough(conjs, K):
     r = B.check_p1(conjs[:K])
@@ -113,7 +113,7 @@ def test_p1_and_p2_with_several_slots_against_the_same_operator(conjs):
     assert r2["marginal_violation"] <= FEAS and r2["product_violation"] <= FEAS
 
 
-# ----------------------------------------------------------------------------- P2
+# P2
 @pytest.mark.parametrize("K", [1, 2, 3, 4])
 def test_p2_decomposition(conjs, K):
     r = B.check_p2(conjs[:K])
@@ -139,7 +139,7 @@ def test_joint_program_sizes(conjs):
     assert b["nonzeros"] == 4 ** 3 * (4 * 3 + 1)
 
 
-# ----------------------------------------------------------------------------- P3
+# P3
 @pytest.mark.parametrize("K", [1, 2, 3, 4, 5, 6])
 def test_p3_exact_one_optimum_is_the_closed_form(conjs, K):
     r = B.check_p3(conjs[:K])
@@ -168,13 +168,13 @@ def test_p3_exact_one_program_is_infeasible_with_an_empty_E_k(master):
 
 
 def test_hand_built_game_without_a_stable_designation():
-    # the fallback of the brief: the miss is far outside the ellipse, so no burn is worth it
+    # the miss is far outside the ellipse, so no burn is worth it
     c1, c2 = M.cost_tables(M.Scenario(miss_xi=2000.0, miss_zeta=2000.0))
     assert B.stable_designations(c1, c2) == ()
     assert G.pure_nash(c1, c2) == [(0, 0)]
 
 
-# ----------------------------------------------------------------------------- P4 and burden
+# P4 and burden
 def test_free_conjunctions_have_one_designation_per_side(conjs):
     for c in conjs:
         info = B.designation_info(c)
@@ -258,7 +258,7 @@ def test_carry_over_on_a_hand_made_batch(conjs):
     assert r["sharing_a_satellite"] == 2
 
 
-# ----------------------------------------------------------------------------- the no-tie assumption of P3
+# The no-tie assumption of P3
 # Example: side 1 has g(S, N) = g(L, N) = 0 <= g(N, N) = 1.
 TIE_C1 = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 TIE_C2 = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 2.0]])
@@ -296,7 +296,7 @@ def test_master_batch_has_no_burn_size_tie(conjs):
     assert B.n_slots_with_burn_size_tie(conjs) == 0
 
 
-# ----------------------------------------------------------------------------- spread over batches (S1b)
+# Spread over batches
 def test_direct_best_public_equals_solve_public(conjs):
     for c in conjs:
         cell, value = B.best_public_direct(c)

@@ -1,8 +1,7 @@
 """Tests for the baseline conjunction.
 
 Several of these are design checks: they pin down the structure the baseline was built to have,
-so that a later change of a parameter that
-silently breaks that structure fails a test.
+so that a parameter change that breaks that structure fails a test.
 """
 import numpy as np
 import pytest
@@ -149,7 +148,6 @@ def test_outcome_metrics_on_simple_tables():
     assert m["coordinator_cost"] == pytest.approx(0.02 + S.lam * M.pc_table(S)[1, 1])
 
 
-# --------------------------------------------------------------------------- added in step 1
 @pytest.mark.parametrize("bad", [1.5, 2.25, 0.0, -1.0, float("nan"), float("inf")])
 def test_scenario_rejects_a_lead_time_that_is_not_a_whole_number_of_orbits(bad):
     import dataclasses

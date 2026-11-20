@@ -1,9 +1,8 @@
 """Slide-ready figures (16:9, white background, large type) built from results/results.json.
 
-Design rules followed: one y-scale per panel (no dual axes), small multiples for measures with
-different units, a fixed colour-blind-safe palette checked with a palette validator, text always
-in ink colours with identity carried by the mark, direct labels next to the lines, solid
-hairline grids.
+One y-scale per panel (no dual axes), small multiples for measures with different units, a fixed
+colour-blind-safe palette, text in ink colours with identity carried by the mark, direct labels
+next to the lines.
 """
 from __future__ import annotations
 
@@ -18,7 +17,7 @@ import numpy as np  # noqa: E402
 from matplotlib import font_manager  # noqa: E402
 from matplotlib.patches import Ellipse, FancyBboxPatch  # noqa: E402
 
-# ---- palette (validated: categorical slots 1-3 all-pairs; blue ramp as an ordinal ramp) ----------
+# palette: BLUE, ORANGE, AQUA are categorical; RAMP2, RAMP3 are ordinal blue ramps
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, AXIS, SURFACE = "#e1e0d9", "#c3c2b7", "#ffffff"
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
@@ -91,7 +90,6 @@ def _save(fig, path):
     plt.close(fig)
 
 
-# ----------------------------------------------------------------------------- figure 1
 def encounter_geometry(res, path):
     scn = res["scenario"]
     pc = np.array(res["baseline"]["pc_table"])
@@ -162,7 +160,6 @@ def encounter_geometry(res, path):
     _save(fig, path)
 
 
-# ----------------------------------------------------------------------------- figure 2
 def concept_comparison(res, path):
     low, high = res["cost_uncertainty_low"], res["cost_uncertainty"]
     s_low, s_high = res["cost_uncertainty_low_settings"], res["cost_uncertainty_settings"]
@@ -236,7 +233,6 @@ def _unit_label(ax, text):
     ax.text(0.0, 1.02, text, transform=ax.transAxes, ha="left", va="bottom", fontsize=FS_NOTE, color=INK2)
 
 
-# ----------------------------------------------------------------------------- figure 3
 def margin_tradeoff(res, path):
     scan = res["margin_scan"]["targeted"]
     mu = np.array([r["mu"] for r in scan]) * 1e4
@@ -385,7 +381,6 @@ def epsilon_tradeoff(res, path):
     _save(fig, path)
 
 
-# ----------------------------------------------------------------------------- figure 4
 def private_vs_public(res, path):
     curves = res["learning_curves"]
     best = res["best_margin_per_k"]["targeted"]

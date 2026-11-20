@@ -1,10 +1,9 @@
 """Sample sizes for the scenario approach, and the scenario version of the coordinator's program.
 
-Background.  A scenario program
-replaces "the constraint holds with probability at least 1 - eps" by "the constraint holds for
-each of N sampled scenarios".  For a convex program with d decision variables that is feasible
-for every sample, the solution violates the constraint for a new scenario with probability more
-than eps only with probability at most
+A scenario program replaces "the constraint holds with probability at least 1 - eps" by "the
+constraint holds for each of N sampled scenarios".  For a convex program with d decision
+variables that is feasible for every sample, the solution violates the constraint for a new
+scenario with probability more than eps only with probability at most
 
     beta = sum_{i=0}^{d-1} C(N, i) eps^i (1 - eps)^(N - i)
 

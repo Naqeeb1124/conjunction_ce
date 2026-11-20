@@ -2,9 +2,9 @@
 
     .venv\\Scripts\\python run_scaleup.py --figures
 
-All seeds are fixed.  If one
-of the checks of propositions P1 to P5 does not hold, the run stops with an error and writes no
-results file.  Wall-clock values sit only under keys containing ``wall_clock`` or ``runtime``.
+All seeds are fixed.  If one of the checks of propositions P1 to P5 does not hold, the run stops
+with an error and writes no results file.  Wall-clock values sit only under keys containing
+``wall_clock`` or ``runtime``.
 """
 from __future__ import annotations
 

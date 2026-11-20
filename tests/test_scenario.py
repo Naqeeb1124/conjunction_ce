@@ -15,7 +15,7 @@ def test_campi_garatti_sample_size_is_the_smallest_that_satisfies_the_bound(eps,
 
 
 def test_sample_sizes_match_an_independent_computation():
-    # values computed separately during the literature check (scipy binomial CDF + bisection)
+    # values computed independently with the scipy binomial CDF and bisection
     assert SC.n_campi_garatti(0.05, 1e-6, 9) == 608
     assert SC.n_campi_garatti(0.05, 1e-3, 9) == 417
     assert SC.n_campi_garatti(0.01, 1e-6, 9) == 3085

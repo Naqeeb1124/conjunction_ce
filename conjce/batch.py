@@ -1,6 +1,6 @@
 """Many conjunctions at once: a 72-hour batch among 30 satellites of 4 operators.
 
-Every parameter below was fixed before anything was run.  Words used here:
+Words used here:
 
 * A conjunction is one pair of satellites of two different operators.  Its game is one draw of
   ``experiments.random_instance``; side 1 plays the role of operator 1 of that game, side 2 the
@@ -38,7 +38,7 @@ from . import experiments as E
 from . import games as G
 from . import model as M
 
-# ----------------------------------------------------------------------------- fixed parameters
+# fixed parameters
 FLEETS = ((0, 12), (12, 20), (20, 26), (26, 30))          # operator p owns satellites lo..hi-1
 N_SATELLITES = 30
 N_OPERATORS = 4
@@ -77,7 +77,7 @@ class CheckFailed(RuntimeError):
     """A check did not hold; the run writes no results file."""
 
 
-# ----------------------------------------------------------------------------- the batch
+# the batch
 @dataclass
 class Conjunction:
     index: int                    # position in generation order
@@ -171,7 +171,7 @@ def _side_cost(conj, side) -> np.ndarray:
     return conj.c1 if side == 0 else conj.c2.T
 
 
-# ----------------------------------------------------------------------------- linear programs
+# linear programs
 def _scale_rows(A):
     """Divide every row by its largest absolute coefficient, as ``games.solve_private`` does."""
     A = sparse.csr_matrix(A)
@@ -332,7 +332,7 @@ def max_violation(A_scaled, x) -> float:
     return float(max(0.0, np.max(A_scaled @ x)))
 
 
-# ----------------------------------------------------------------------------- the checks
+# the checks
 def marginals(x_full, K: int) -> list:
     """Per-conjunction 3x3 marginals of a distribution over the 9^K full profiles."""
     t = np.asarray(x_full).reshape((9,) * K)
@@ -424,7 +424,7 @@ def check_p3_infeasible(batch: Batch, size: int = 3) -> dict:
             "infeasible": ex["status"] == 2, "closed_form": closed_form(conjs)}
 
 
-# ----------------------------------------------------------------------------- burden-sharing
+# burden-sharing
 def designation_info(conj) -> dict:
     """Stage 1 for one conjunction: its cost-optimal stable designations and whether it is free."""
     costs = {e: float(conj.obj[e]) for e in conj.stable}
@@ -567,7 +567,7 @@ def histogram(burns) -> list:
     return np.bincount(np.asarray(burns, dtype=int), minlength=1).tolist()
 
 
-# ----------------------------------------------------------------------------- carry-over
+# carry-over
 def designated_burners(conjs, variant: str) -> list:
     """Satellite designated to burn in each conjunction (``"fixed"`` or ``"deterministic"`` tie-break)."""
     _, free = _burden_setup(conjs)
@@ -629,7 +629,7 @@ def n_slots_with_burn_size_tie(conjs) -> int:
     return int(sum(burn_size_tie_slots(c) for c in conjs))
 
 
-# ----------------------------------------------------------------------------- the run
+# the run
 def _family(batches) -> dict:
     kept = [c for b in batches for c in b.conjunctions]
     draws = sum(b.n_draws for b in batches)
@@ -694,7 +694,7 @@ def _totals(conjs, private, public) -> dict:
             "rel_gap_private_vs_stable": (s - p) / s, "rel_gap_public_vs_stable": (s - u) / s,
             "rel_gap_private_vs_public": (u - p) / u,
             "n_public_strictly_cheaper": int(sum(1 for a, b in zip(public, stable) if a < b * (1 - FREE_TOL))),
-            # private strictly cheaper than the cheapest stable designation (kept from the first run)
+            # private strictly cheaper than the cheapest stable designation
             "n_private_strictly_cheaper": int(sum(1 for a, b in zip(private, stable) if a < b * (1 - FREE_TOL))),
             "n_private_strictly_cheaper_than_public": int(sum(prv_cheaper)),
             "share_of_public_total_where_private_strictly_cheaper":
@@ -773,10 +773,10 @@ def _stats(values) -> dict:
 def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GRID,
         further_seeds=FURTHER_SEEDS, size_cap: int = SIZE_CAP, repeats: int = REPEATS,
         p1_ks=None, p5_ks=P5_KS, burden_ks=BURDEN_KS, log=print) -> dict:
-    """Everything the brief asks for; raises ``CheckFailed`` if a check does not hold.
+    """The whole batch study as one results dict; raises ``CheckFailed`` if a check does not hold.
 
-    ``p1_ks=None`` runs the P1 check at every K of the grid within the full-joint size cap (the
-    brief's K = 2 and 3 included); the tests run it at ``P1_KS``."""
+    ``p1_ks=None`` runs the P1 check at every K of the grid within the full-joint size cap; the
+    tests run it at ``P1_KS``."""
     t_start = time.perf_counter()
     master = generate_batch(master_seed, n_master)
     conjs = master.conjunctions
@@ -798,7 +798,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     res["family_master_only"] = _family([master])
     res["family"]["rejected_breakdown"] = rejected_breakdown([master] + further)
     res["family_master_only"]["rejected_breakdown"] = rejected_breakdown([master])
-    # spread over the further batches (added after the first run, step S1b)
+    # spread over the further batches
     fast = [totals_fast(b.conjunctions) for b in further]
     res["totals_further_batches"] = {
         "n_batches": len(fast), "K": MASTER_SIZE,
@@ -817,7 +817,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
             failures.append(text)
             log("CHECK FAILED: " + text)
 
-    # --- timing table and checks P2, P3 at every K within the size cap -------------------------
+    # timing table and checks P2, P3 at every K within the size cap
     timing, p2, p3 = [], [], []
     for K in k_grid:
         sub = conjs[:K]
@@ -854,7 +854,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     infeas = check_p3_infeasible(master)
     need(infeas["empty_E_k"] and infeas["infeasible"], f"P3 infeasibility: status {infeas['status']}")
 
-    # --- P1 ------------------------------------------------------------------------------------
+    # P1
     if p1_ks is None:                       # every K of the grid within the full-joint size cap
         p1_ks = [K for K in k_grid if 9 ** K <= size_cap]
     p1 = [check_p1(conjs[:K]) for K in p1_ks]
@@ -863,7 +863,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
         need(r["violation_of_all_deviation_rows"] <= FEASIBILITY_TOL,
              f"P1 violation at K={r['K']}: {r['violation_of_all_deviation_rows']:.3g}")
 
-    # --- P5 ------------------------------------------------------------------------------------
+    # P5
     p5 = []
     for K in p5_ks:
         a, b = balanced_randomised(conjs[:K]), balanced_randomised_joint(conjs[:K])
@@ -892,7 +892,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     }
     res["timing"] = timing
 
-    # --- totals, burden, carry-over ------------------------------------------------------------
+    # totals, burden, carry-over
     res["totals"] = {f"K{K}": _totals(conjs[:K], private[:K], public[:K]) for K in burden_ks}
     res["burden"] = {f"master_K{K}": _burden_record(conjs[:K]) for K in burden_ks}
     rows = [burden(b.conjunctions) for b in further]

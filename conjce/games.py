@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-# --------------------------------------------------------------------------- Nash equilibria
+# Nash equilibria
 def pure_nash(c1, c2, margin: float = 0.0, tol: float = 1e-12):
     """Pure Nash equilibria.  With ``margin`` > 0, every unilateral deviation must cost at least
     ``margin`` more than staying (a strict equilibrium with that much slack)."""
@@ -107,7 +107,7 @@ def point_table(profile, shape=(3, 3)) -> np.ndarray:
     return x
 
 
-# --------------------------------------------------------------------------- obedience
+# Obedience constraints
 def obedience_system(c1, c2):
     """Linear form of the correlated-equilibrium (obedience) constraints.
 
@@ -169,7 +169,7 @@ def conditional_advantages(x, c1, c2, min_prob: float = 1e-12):
     return out
 
 
-# --------------------------------------------------------------------------- coordinator LPs
+# Coordinator LPs
 def _solve_lp(obj, A_ub, extra=None, zero_idx=None):
     """min obj @ x  s.t.  A_ub @ x <= 0,  extra rows (a, b) meaning a @ x <= b,  x in the simplex."""
     n = obj.size

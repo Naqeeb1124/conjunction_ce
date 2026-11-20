@@ -1,5 +1,5 @@
 function test_core()
-%TEST_CORE Checks of the core port against the reference numbers in expected.json.
+%TEST_CORE Checks of the core functions against the reference numbers in expected.json.
 E = load_expected();
 B = E.baseline;
 S = load_scenario();

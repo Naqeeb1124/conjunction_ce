@@ -46,7 +46,7 @@ hold(ax3, 'on');
 surf(ax3, S.r_earth*Xe, S.r_earth*Ye, S.r_earth*Ze, 'FaceColor', [0.93 0.95 0.97], ...
     'EdgeColor', st.grid, 'FaceLighting', 'none', 'EdgeLighting', 'none');
 
-% Circle of radius |r| in the plane spanned by r and v, sampled at angles th.
+% Orbit rings of both satellites, sampled every degree.
 th = linspace(0, 2*pi, 361);
 R1 = ringPoints(oA.r1, oA.v1, th);
 R2 = ringPoints(oA.r2, oA.v2, th);

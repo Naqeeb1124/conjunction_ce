@@ -98,7 +98,6 @@ def test_mixed_nash_selection_picks_the_mixed_equilibrium_of_the_baseline():
     assert out["obey"][0] == pytest.approx(1.0)       # a Nash equilibrium is followed when it is known
 
 
-# ------------------------------------------------------------------------------- added in step 1
 def test_uncertain_belief_rows_of_the_baseline_are_told_small_burn_deviation_none():
     c1, c2, obj, _ = E.nominal(S)
     x0 = G.solve_private(c1, c2, obj)["x"]                 # zero-margin private optimum

@@ -41,7 +41,7 @@ def main(make_figures: bool = False) -> dict:
     schemes, families, info = E.baseline_schemes(scn)
     res = {"scenario": E.scenario_dict(scn), "scheme_info": info}
 
-    # --- E0: the baseline game --------------------------------------------------------------
+    # E0: the baseline game
     res["baseline"] = {
         "pc_table": pc, "miss_xi_table": M.miss_xi_table(scn), "cost_op1": c1, "cost_op2": c2,
         "coordinator_cost_table": obj, "maneuver_cost_fraction": M.maneuver_cost_fraction(scn),
@@ -55,11 +55,11 @@ def main(make_figures: bool = False) -> dict:
                                **M.outcome_metrics(scn, f["x"])} for f in fam]
                        for name, fam in families.items()}
 
-    # --- E1: everything known ----------------------------------------------------------------
+    # E1: everything known
     res["nominal_comparison"] = E.nominal_comparison(scn)
     public_cost = res["nominal_comparison"]["public"]["coordinator_cost"]
 
-    # --- E2: operators learn the rule from k events (costs known) -----------------------------
+    # E2: operators learn the rule from k events (costs known)
     res["learning_curves"] = {name: E.learning_curve(scn, schemes[name], seed=10 + i)
                               for i, name in enumerate(("public",) + PRIVATE)}
     res["learning_curve_margins"] = {"private_m0": 0.0, "private_uniform": info["mu_uniform_max"],
@@ -74,7 +74,7 @@ def main(make_figures: bool = False) -> dict:
     # exact crossover, exact two-parameter gap, and the simulation-against-exact agreement check
     res["exact_checks"] = X.run(scn)
 
-    # --- E3: the coordinator does not know the costs exactly (rule known) ----------------------
+    # E3: the coordinator does not know the costs exactly (rule known)
     games = M.sample_true_games(scn, 10000, np.random.default_rng(30))
     res["cost_uncertainty"] = E.cost_uncertainty_eval(scn, schemes, games)
     res["cost_uncertainty"]["nash_true_game"] = E.true_game_nash(scn, games)
@@ -89,13 +89,13 @@ def main(make_figures: bool = False) -> dict:
     res["safety_constraint"] = E.safety_constraint_check(scn)
     res["published_pc_variant"] = E.published_pc_variant(scn, {k: schemes[k] for k in ("public",) + PRIVATE})
 
-    # --- E4: both imperfections ---------------------------------------------------------------
+    # E4: both imperfections
     res["learning_with_cost_uncertainty"] = E.learning_with_cost_uncertainty(scn, families, schemes)
 
-    # --- E5: private versus public over random instances --------------------------------------
+    # E5: private versus public over random instances
     res["instance_family"] = E.private_vs_public_family()
 
-    # --- E6: the plain scenario program ---------------------------------------------------------
+    # E6: the plain scenario program
     res["scenario_program"] = E.scenario_program_check(scn)
     res["scenario_program_small_uncertainty"] = E.scenario_program_check(scn, sig_cost=0.05, sig_k=0.02, seed=50)
 
