@@ -139,7 +139,7 @@ def game(scn: M.Scenario) -> dict:
 def two_body_miss(scn: M.Scenario, u1: float, u2: float):
     """Encounter-plane miss vector after two-body propagation of both satellites.
 
-    Same construction as tests/test_maneuver.py: states at the nominal time of closest approach,
+    States at the nominal time of closest approach,
     back to the burn epoch, burn along each satellite's own velocity, forward again, straight-line
     closest approach, projection on the nominal encounter-plane axes.
     """
