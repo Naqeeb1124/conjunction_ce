@@ -1,3 +1,0 @@
-# MATLAB writes these result files with LF line endings on every platform.
-# Checking them out the same way keeps a re-run from showing up as a change.
-matlab/results/*.json text eol=lf

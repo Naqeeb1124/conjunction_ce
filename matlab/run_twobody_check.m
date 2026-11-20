@@ -1,5 +1,8 @@
 root = setup_paths();
 R = twobody_check();
+if ~isfolder(fullfile(root, 'results'))
+    mkdir(fullfile(root, 'results'));
+end
 fid = fopen(fullfile(root, 'results', 'twobody_check.json'), 'w');
 fwrite(fid, jsonencode(R, 'PrettyPrint', true));
 fclose(fid);

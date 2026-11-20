@@ -86,6 +86,7 @@ def _barh(ax, y, value, height, color):
 
 
 def _save(fig, path):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=DPI)
     plt.close(fig)
 
