@@ -1,6 +1,6 @@
 """Sample sizes for the scenario approach, and the scenario version of the coordinator's program.
 
-Background (derivation and exact statements in DERIVATIONS.md, section 6).  A scenario program
+Background.  A scenario program
 replaces "the constraint holds with probability at least 1 - eps" by "the constraint holds for
 each of N sampled scenarios".  For a convex program with d decision variables that is feasible
 for every sample, the solution violates the constraint for a new scenario with probability more

@@ -1,7 +1,5 @@
 """Tangential-burn to miss-distance mapping for near-circular orbits.
 
-Derivations are in DERIVATIONS.md, section 2.
-
 Frame for the Clohessy-Wiltshire (Hill) equations: x radial (outward), y along-track (direction
 of motion), z cross-track; n is the mean motion of the reference circular orbit.
 

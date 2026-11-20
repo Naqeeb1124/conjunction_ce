@@ -1,7 +1,6 @@
 """Many conjunctions at once: a 72-hour batch among 30 satellites of 4 operators.
 
-The model is described in RESULTS.md 4.10 and DERIVATIONS.md 7; every parameter below was fixed
-before anything was run.  Words used here:
+Every parameter below was fixed before anything was run.  Words used here:
 
 * A conjunction is one pair of satellites of two different operators.  Its game is one draw of
   ``experiments.random_instance``; side 1 plays the role of operator 1 of that game, side 2 the
@@ -75,7 +74,7 @@ def cell_label(cell) -> str:
 
 
 class CheckFailed(RuntimeError):
-    """A check of the brief did not hold; the run writes no results file."""
+    """A check did not hold; the run writes no results file."""
 
 
 # ----------------------------------------------------------------------------- the batch
@@ -605,13 +604,13 @@ def carry_over(conjs) -> dict:
     return out
 
 
-TIE_TOL = 1e-12          # the tolerance of games.pure_nash, as in DERIVATIONS.md subsection 7.4
+TIE_TOL = 1e-12          # the tolerance of games.pure_nash
 
 
 def burn_size_tie_slots(conj) -> int:
     """Number of slots of this conjunction (0, 1 or 2) with a burn-size tie.
 
-    Definition (DERIVATIONS.md subsection 7.4, the no-tie assumption of P3): a slot has a tie if
+    Definition (the no-tie assumption of P3): a slot has a tie if
     the small and the large burn are both best replies to N on the other side, that is
     g_s(S, N) = g_s(L, N) <= g_s(N, N), with g_s the slot's cost table indexed [own, other].
     Tolerance: absolute 1e-12, the one ``games.pure_nash`` uses; a burn is a best reply to N if

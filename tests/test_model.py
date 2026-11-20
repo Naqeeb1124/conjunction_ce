@@ -1,7 +1,7 @@
 """Tests for the baseline conjunction.
 
-Several of these are design checks: they pin down the structure the baseline was built to have
-(see RESULTS.md, "How the baseline was chosen"), so that a later change of a parameter that
+Several of these are design checks: they pin down the structure the baseline was built to have,
+so that a later change of a parameter that
 silently breaks that structure fails a test.
 """
 import numpy as np
@@ -89,7 +89,7 @@ def test_coordinator_prefers_two_small_burns_and_values_safety_more_than_operato
 
 
 def test_baseline_private_rule_matches_the_closed_form():
-    """DERIVATIONS.md 4.4: the solver's table against the hand-derived one."""
+    """The solver's table against the hand-derived one."""
     c1, c2 = M.cost_tables(S)
     pc = M.pc_table(S)
     p0, p1, p2 = pc[0, 0], pc[1, 0], pc[1, 1]
@@ -100,7 +100,7 @@ def test_baseline_private_rule_matches_the_closed_form():
     assert x[1, 1] == pytest.approx(both, abs=1e-6)
     assert x[1, 0] == pytest.approx(both * alpha[0] / (1 - alpha[0]), abs=1e-6)
     assert x[0, 1] == pytest.approx(both * alpha[1] / (1 - alpha[1]), abs=1e-6)
-    # the same alphas are the waiting probabilities of the mixed Nash equilibrium (DERIVATIONS.md 4.2)
+    # the same alphas are the waiting probabilities of the mixed Nash equilibrium
     p, q = [e for e in G.support_enumeration(c1, c2) if np.count_nonzero(e[0] > 1e-9) > 1][0]
     assert q[0] == pytest.approx(alpha[0], abs=1e-9) and p[0] == pytest.approx(alpha[1], abs=1e-9)
 

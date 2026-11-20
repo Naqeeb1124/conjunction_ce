@@ -9,7 +9,7 @@ writes
 
 Deterministic quantities are recomputed here with the conjce functions and compared with
 results/results.json before anything is written; the script stops if they differ.  Simulated
-quantities (the learning curves of RESULTS.md 4.2) are copied from results/results.json.
+quantities (the learning curves) are copied from results/results.json.
 
 Index convention in both files: actions are 0 = no burn, 1 = small burn, 2 = large burn, and every
 3x3 table is indexed [a1][a2] (operator 1 = row).  Flattened tables are row-major (a1 * 3 + a2).
@@ -31,7 +31,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 OUT = ROOT / "matlab"
 
 # Sense of each operator's tangential burn along its own velocity: posigrade for satellite 1,
-# retrograde for satellite 2, so that both increase the nominal miss (DERIVATIONS.md 2.5).
+# retrograde for satellite 2, so that both increase the nominal miss.
 BURN_SIGN = (1.0, -1.0)
 
 # Settings of the two-body check on the MATLAB side (they are not part of the game model).
@@ -42,7 +42,7 @@ MC_SAMPLES = 2000
 MC_SEED = 1
 MC_PROPOSAL_RADIUS_HBR = 2.0
 
-# The gallery uses the first draws of the instance family of RESULTS.md 4.6 (same generator, same seed).
+# The gallery uses the first draws of the random instance family (same generator, same seed).
 GALLERY_SEED = 4
 GALLERY_SIZE = 12
 

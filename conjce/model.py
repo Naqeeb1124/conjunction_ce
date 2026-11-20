@@ -1,7 +1,6 @@
 """The baseline two-operator conjunction and its cost model.
 
-Everything here is synthetic.  The numbers were fixed from the design principles listed in
-RESULTS.md (section "How the baseline was chosen") before any comparison between coordination
+Everything here is synthetic.  The numbers were fixed before any comparison between coordination
 schemes was run.
 
 Indexing convention used across the package: joint actions are (a1, a2) with a_i in {0, 1, 2}

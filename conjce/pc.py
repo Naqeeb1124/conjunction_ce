@@ -1,7 +1,5 @@
 """Two-dimensional (short-encounter) collision probability in the encounter plane.
 
-All formulas are derived step by step in DERIVATIONS.md, section 1.
-
 Model (Foster and Estes 1992; Akella and Alfriend 2000; Alfano 2005; Chan 2008):
 the relative motion during the encounter is a straight line, the relative position
 uncertainty is Gaussian and constant during the encounter, and a collision happens when

@@ -2,7 +2,7 @@
 
     .venv\\Scripts\\python run_all.py --figures
 
-All random seeds are fixed, so the numbers quoted in RESULTS.md are reproducible.
+All random seeds are fixed, so the numbers are reproducible.
 """
 from __future__ import annotations
 

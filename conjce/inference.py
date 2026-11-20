@@ -20,8 +20,6 @@ occurred in those k events leaves it with a uniform belief over the other operat
 
 ``exact_realised_joint`` computes the expectations that ``realised_joint`` estimates, without
 sampling, by enumerating the multinomial counts of the past events.
-
-Derivations (including the Hoeffding bound) are in DERIVATIONS.md, section 5.
 """
 from __future__ import annotations
 
@@ -309,7 +307,7 @@ def exact_realised_joint(x, c1, c2, k: int, start: str = "observed", tie_tol=Non
 
 def hoeffding_disobedience_bound(x, c1, c2, k: int) -> float:
     """Upper bound on the probability that at least one operator does not follow its
-    recommendation, when both learn x from k past events (see DERIVATIONS.md, section 5).
+    recommendation, when both learn x from k past events.
 
     For an operator told r, with deviation d, let g(a) = c(d, a) - c(r, a) be what obeying saves
     when the other operator plays a.  Its true conditional mean is the advantage gamma > 0 and it

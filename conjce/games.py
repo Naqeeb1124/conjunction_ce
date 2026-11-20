@@ -2,7 +2,6 @@
 
 Conventions: ``c1[a1, a2]`` and ``c2[a1, a2]`` are the costs each player wants to minimise.
 A recommendation rule is a probability table ``x[a1, a2]`` over joint actions.
-Derivations are in DERIVATIONS.md, section 4.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Tests for the batch model (many conjunctions at once), conjce/batch.py.
 
-The checks of propositions P1 to P5 of the scale-up (DERIVATIONS.md 7) run here at small sizes: the
+The checks of propositions P1 to P5 of the scale-up run here at small sizes: the
 full joint program up to K = 4, the exact-one joint program up to K = 6.  run_scaleup.py repeats
 them at every K within the size cap.
 """
@@ -259,7 +259,7 @@ def test_carry_over_on_a_hand_made_batch(conjs):
 
 
 # ----------------------------------------------------------------------------- the no-tie assumption of P3
-# The example of DERIVATIONS.md subsection 7.4: side 1 has g(S, N) = g(L, N) = 0 <= g(N, N) = 1.
+# Example: side 1 has g(S, N) = g(L, N) = 0 <= g(N, N) = 1.
 TIE_C1 = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
 TIE_C2 = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 2.0]])
 TIE_J = np.zeros((3, 3))

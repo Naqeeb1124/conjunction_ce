@@ -1,4 +1,4 @@
-"""The experiments behind RESULTS.md.  ``run_all.py`` calls these and stores the numbers."""
+"""The experiments.  ``run_all.py`` calls these and stores the numbers."""
 from __future__ import annotations
 
 import dataclasses
@@ -190,7 +190,7 @@ def margin_scan(scn, family, ks=(15, 30, 100, 300), n_rep=100000, seed=6, n_game
 
 
 def two_parameter_grid(scn, grid_n: int):
-    """The (alpha_1, alpha_2) grid of three-action recommendation tables (DERIVATIONS.md 4.4).
+    """The (alpha_1, alpha_2) grid of three-action recommendation tables.
 
     alpha_i is the probability, given that operator i is told to make a small burn, that the other
     operator was told not to burn.  Each alpha_i runs over ``grid_n`` points from the threshold
@@ -218,7 +218,7 @@ def two_parameter_check(scn, targeted_family, ks=(10, 15, 20, 30, 50, 100, 300, 
 
     In the baseline every private rule uses three joint actions: both small, only operator 1,
     only operator 2.  Such a table is fixed by two numbers, alpha_1 and alpha_2: the probability,
-    given that an operator is told to burn, that the other was told not to (DERIVATIONS.md 4.4).
+    given that an operator is told to burn, that the other was told not to.
     This scans a grid of (alpha_1, alpha_2), picks the best table for each k on one set of
     simulated histories, re-evaluates it on an independent set, and does the same for the
     one-parameter family.
