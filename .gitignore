@@ -7,7 +7,6 @@ __pycache__/
 Thumbs.db
 .DS_Store
 
-# MATLAB and Simulink logs and build products
 matlab/logs/
 *.asv
 *.slxc

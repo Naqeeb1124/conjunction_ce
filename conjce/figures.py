@@ -1,9 +1,3 @@
-"""Slide-ready figures (16:9, white background, large type) built from results/results.json.
-
-One y-scale per panel (no dual axes), small multiples for measures with different units, a fixed
-colour-blind-safe palette, text in ink colours with identity carried by the mark, direct labels
-next to the lines.
-"""
 from __future__ import annotations
 
 import json
@@ -12,18 +6,17 @@ import pathlib
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from matplotlib import font_manager  # noqa: E402
-from matplotlib.patches import Ellipse, FancyBboxPatch  # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import font_manager
+from matplotlib.patches import Ellipse, FancyBboxPatch
 
-# palette: BLUE, ORANGE, AQUA are categorical; RAMP2, RAMP3 are ordinal blue ramps
 INK, INK2, MUTED = "#0b0b0b", "#52514e", "#898781"
 GRID, AXIS, SURFACE = "#e1e0d9", "#c3c2b7", "#ffffff"
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
-RAMP3 = ("#86b6ef", "#2a78d6", "#104281")           # light -> dark
+RAMP3 = ("#86b6ef", "#2a78d6", "#104281")
 RAMP2 = ("#86b6ef", "#104281")
-ELLIPSE_FILL = ("#cde2fb", "#9ec5f4", "#6da7ec")     # 3-sigma, 2-sigma, 1-sigma
+ELLIPSE_FILL = ("#cde2fb", "#9ec5f4", "#6da7ec")
 
 FIGSIZE = (13.333, 7.5)
 DPI = 200
@@ -60,7 +53,6 @@ def _titles(fig, title, subtitle):
 
 
 def _sci(v: float, digits: int = 1) -> str:
-    """1.5e-3 -> mathtext '1.5×10^-3'."""
     if v == 0:
         return "0"
     exp = int(np.floor(np.log10(abs(v))))
@@ -71,14 +63,13 @@ def _sci(v: float, digits: int = 1) -> str:
 
 
 def _barh(ax, y, value, height, color):
-    """Horizontal bar from zero with a rounded data end and a square baseline end."""
     x0, x1 = ax.get_xlim()
     y0, y1 = ax.get_ylim()
     box = ax.get_window_extent().transformed(ax.figure.dpi_scale_trans.inverted())
-    sx = (x1 - x0) / box.width                # data units per inch
+    sx = (x1 - x0) / box.width
     sy = abs(y1 - y0) / box.height
     r = min(0.065 * sx, 0.5 * value) if value > 0 else 0.0
-    pad = 0.3 * sx                            # start left of the axis; clipping squares the baseline end
+    pad = 0.3 * sx
     patch = FancyBboxPatch((x0 - pad, y - height / 2), value - x0 + pad, height,
                            boxstyle=f"round,pad=0,rounding_size={r}", mutation_aspect=sy / sx,
                            linewidth=0, facecolor=color, clip_on=True, zorder=3)
@@ -141,7 +132,7 @@ def encounter_geometry(res, path):
         if v >= floor:
             ax2.plot([v], [y], marker="o", markersize=12, color=ORANGE, markeredgecolor=SURFACE,
                      markeredgewidth=2.2, zorder=5)
-            if v > 1e-11:      # room on the left of the dot; never across the threshold line
+            if v > 1e-11:
                 ax2.text(min(v * 0.18, scn["pc_threshold"] * 0.45), y, _sci(v), ha="right", va="center",
                          fontsize=FS_NOTE, color=INK)
             else:
@@ -230,7 +221,6 @@ def _percent_log_axis(ax):
 
 
 def _unit_label(ax, text):
-    """A horizontal unit line above the plot, instead of a rotated y-axis label."""
     ax.text(0.0, 1.02, text, transform=ax.transAxes, ha="left", va="bottom", fontsize=FS_NOTE, color=INK2)
 
 
@@ -262,10 +252,6 @@ def margin_tradeoff(res, path):
     ax.set_xlim(mu[0], mu[-1] + 0.3)
 
     def broken_line(ax, y, color, label):
-        """Draw y on the log panel without the points below the floor (the line breaks there).
-
-        A stretch that comes back above the floor is drawn as the data give it; a stretch of a
-        single point gets a dot. Returns the index of the last point of the first stretch."""
         y = np.asarray(y, dtype=float)
         above = y >= floor
         ax.plot(mu, np.where(above, y, np.nan), color=color, lw=LW, solid_capstyle="round", label=label)
@@ -277,7 +263,6 @@ def margin_tradeoff(res, path):
         return int(below[0]) - 1 if below.size else len(y) - 1
 
     def end_label(ax, i, y, text):
-        # keep the label clear of the bottom spine when the stretch ends on the floor
         ax.text(mu[i] + 0.25, max(y[i], 1.4 * floor), text, ha="left", va="center", fontsize=FS_NOTE, color=INK)
     ax.set_xlabel(xlab)
     _unit_label(ax, "coordinator cost (cm/s equivalent)")
@@ -314,7 +299,6 @@ def epsilon_tradeoff(res, path):
     cal = res["calibration_sigma_0.1"]
     rows = [r for r in cal["rows"] if r["feasible"]]
     eps = np.array([r["eps"] for r in rows])
-    # the plotted points are costs on the test games, so the reference is the public rule's test-game cost
     public = cal["public_choice"]["realised_cost"] * 100
     fig = plt.figure(figsize=FIGSIZE, dpi=DPI)
     _titles(fig, "The violation budget is met, but a bigger budget costs more than it saves",
@@ -333,7 +317,7 @@ def epsilon_tradeoff(res, path):
         ax.set_xlabel("violation budget (epsilon)")
 
     ax = fig.add_axes([left, bottom, width, height])
-    kinds = list(dict.fromkeys(r["kind"] for r in rows))     # candidate labels as stored in the results
+    kinds = list(dict.fromkeys(r["kind"] for r in rows))
     chosen = (f"cheapest at every budget:\n{kinds[0]}" if len(kinds) == 1
               else "cheapest rule:\n" + "\n".join(kinds))
     ax.text(0.56, 0.0055, chosen, ha="right", va="bottom", fontsize=FS_NOTE - 1, color=INK2, linespacing=1.2)
@@ -393,7 +377,6 @@ def private_vs_public(res, path):
     exact = res.get("exact_checks")
     note = None
     if exact is not None:
-        # exact (sampling-free) crossover of the targeted family; operators start from observed frequencies
         k_cross = exact["crossover"]["targeted"]["observed"]["first_k"]
         y_c = ([r["cost"] * 100 for r in exact["best_per_k"]["targeted"]["observed"] if r["k"] == k_cross][0]
                if k_cross else None)
@@ -442,7 +425,6 @@ def private_vs_public(res, path):
     ax.set_xlabel("k: past events each operator has seen")
     ax.set_ylabel("realised coordinator cost (cm/s equivalent)")
     if k_cross:
-        # two lines in the empty space above the blue curve and left of the green curve's descent
         ax.annotate(cross_text, (k_cross, y_c), xytext=(2.0, 7.6),
                     fontsize=FS_NOTE + 1, color=INK, ha="left", va="center", linespacing=1.15,
                     arrowprops=dict(arrowstyle="-", color=MUTED, lw=1.2, shrinkA=4, shrinkB=7,
@@ -450,13 +432,11 @@ def private_vs_public(res, path):
         ax.plot([k_cross], [y_c], marker="o", markersize=11, color=BLUE, markeredgecolor=SURFACE,
                 markeredgewidth=2.2, zorder=6)
     if note:
-        # right of the green curve's descent, between the legend and the flat curves
         ax.text(110, 13.5, note, ha="left", va="top", fontsize=FS_NOTE - 1, color=MUTED, linespacing=1.25,
                 bbox=dict(boxstyle="square,pad=0.15", facecolor=SURFACE, edgecolor="none"), zorder=2)
     ax.legend(loc="center right", bbox_to_anchor=(1.0, 0.60), handlelength=1.6, fontsize=FS_NOTE)
     ax.set_title("Learning the rule", loc="left", pad=12)
 
-    # right: what privacy buys when everything is known
     specs = [("Total delta-v (cm/s)", "delta_v", 100.0, "{:.2f}"),
              (r"Collision probability ($\times10^{-5}$)", "mean_pc", 1e5, "{:.2f}"),
              ("Coordinator cost (cm/s equivalent)", "coordinator_cost", 100.0, "{:.2f}")]
@@ -485,7 +465,7 @@ def private_vs_public(res, path):
 
 def make_all(res, out_dir):
     _setup()
-    import matplotlib.ticker  # noqa: F401  (used through matplotlib.ticker above)
+    import matplotlib.ticker
     out_dir = pathlib.Path(out_dir)
     out_dir.mkdir(exist_ok=True)
     encounter_geometry(res, out_dir / "encounter_geometry.png")

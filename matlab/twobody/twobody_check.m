@@ -1,9 +1,5 @@
 function R = twobody_check()
-%TWOBODY_CHECK Compare the linear burn-to-miss map with two-body propagation and trace the effect.
-%   R = twobody_check() returns the 3x3 tables (indexed a1, a2) of the propagated miss vector,
-%   the collision probabilities, the incentive and coordinator-rule consequences and the Monte
-%   Carlo cross-check, together with propagator diagnostics and the settings used.
-root = setup_paths(); %#ok<NASGU>
+root = setup_paths();
 P = load_params();
 E = load_expected();
 S = load_scenario();
@@ -137,7 +133,6 @@ R.settings.matlab_version = version;
 end
 
 function [b1, b2] = best_responses(T)
-% Best own action of operator 1 for each action of operator 2 (b1) and vice versa (b2).
 b1 = zeros(3, 1);
 b2 = zeros(3, 1);
 for j = 1:3
@@ -147,12 +142,11 @@ end
 end
 
 function cells = pure_nash(T)
-% Joint actions [a1 a2] (one-based) where neither operator can lower its own cost alone.
 cells = zeros(0, 2);
 for a1 = 1:3
     for a2 = 1:3
         if T.c1(a1, a2) <= min(T.c1(:, a2)) && T.c2(a1, a2) <= min(T.c2(a1, :))
-            cells(end + 1, :) = [a1 a2]; %#ok<AGROW>
+            cells(end + 1, :) = [a1 a2];
         end
     end
 end

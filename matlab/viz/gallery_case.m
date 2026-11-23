@@ -1,7 +1,4 @@
 function G = gallery_case(P, i)
-% Recommendation, burn offsets, miss and collision numbers of gallery case i.
-% The recommendation is the largest entry of the coordinator's correlated equilibrium,
-% taking the first entry in row-major order on ties.
 Si = load_scenario(P.gallery(i).scenario, P.constants);
 Ti = cost_matrices(Si);
 [x, ~] = solve_ce(Ti.c1, Ti.c2, Ti.obj);
@@ -30,7 +27,6 @@ G.sig_s = P.gallery(i).sigma_s;
 G.tau_star = (G.d1 - G.d2) / (2 * Si.v);
 G.nobody = (a1 == 1) && (a2 == 1);
 
-% A pure rule is a tie when the swapped pair is also an obedient rule with the same coordinator cost.
 G.tie = false;
 if prob >= 1 - 1e-9 && a1 ~= a2
     b1 = a2;

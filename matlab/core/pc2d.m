@@ -1,13 +1,6 @@
 function pc = pc2d(xm, ym, sx, sy, R)
-%PC2D Probability that a 2D Gaussian lies inside the disc x^2 + y^2 <= R^2.
-%   pc = pc2d(xm, ym, sx, sy, R): Gaussian mean (xm, ym), axis standard deviations (sx, sy).
-%   The integral runs along the axis with the larger sigma by 128-point Gauss-Legendre
-%   quadrature; the other axis is integrated in closed form with the normal CDF.
-%   Inputs are scalars or arrays of one common size; the output has that size.
 persistent u wrow
 if isempty(u)
-    % Golub-Welsch: eigenvalues of the Jacobi matrix are the nodes, the first eigenvector
-    % components give the weights
     k = 1:127;
     beta = k ./ sqrt(4 * k.^2 - 1);
     J = diag(beta, 1) + diag(beta, -1);
@@ -31,7 +24,6 @@ bm(swap) = abs(xm(swap));
 as = max(sx, sy);
 bs = min(sx, sy);
 
-% Map nodes to theta in [0, pi/2] on the chord coordinate a = R sin(t), h = R cos(t)
 t = (pi / 2) * u.';
 a = R .* sin(t);
 h = R .* cos(t);

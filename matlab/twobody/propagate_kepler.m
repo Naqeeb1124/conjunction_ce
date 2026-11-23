@@ -1,6 +1,4 @@
 function [r, v] = propagate_kepler(r0, v0, t, mu)
-%PROPAGATE_KEPLER Analytic two-body propagation (universal variables, Lagrange coefficients).
-%   Newton iteration on the universal anomaly chi for sqrt(mu) t = F(chi); t may be negative.
 if t == 0
     r = r0;
     v = v0;
@@ -38,7 +36,6 @@ v = fdot * r0 + gdot * v0;
 end
 
 function [C, S] = stumpff(z)
-%STUMPFF Stumpff functions C(z) = (1 - cos(sqrt z))/z and S(z) = (sqrt z - sin(sqrt z))/z^1.5.
 if abs(z) < 1e-3
     C = 1/2 - z/24 + z^2/720 - z^3/40320 + z^4/3628800;
     S = 1/6 - z/120 + z^2/5040 - z^3/362880 + z^4/39916800;

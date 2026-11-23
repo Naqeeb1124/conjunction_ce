@@ -1,10 +1,3 @@
-"""Figure of the scale-up (many conjunctions at once), drawn from results/scaleup.json.
-
-The style (palette, sizes, fonts, title layout) is imported from ``conjce.figures``.  Every number
-in the figure text is read from the results file.
-
-    .venv\\Scripts\\python -m conjce.batch_figures
-"""
 from __future__ import annotations
 
 import json
@@ -31,7 +24,6 @@ def make(res, path):
     k_max = max(res["settings"]["k_grid"])
     cap = res["settings"]["size_cap"]
     bm = res["burden"][f"master_K{k_max}"]
-    # sizes, not wall-clock times, in the headline: times belong to one machine
     n_var_c = [r["variables"] for r in res["timing"] if r["formulation"] == "c" and r["K"] == k_max][0]
     title = (f"Split by conjunction, {k_max} conjunctions need {n_var_c:,} variables, not $9^{{{k_max}}}$; "
              f"balancing the free\nchoices cuts the busiest satellite from {bm['max_burns_fixed_tie_break']} "
@@ -45,7 +37,6 @@ def make(res, path):
              ha="left", va="top", linespacing=1.2)
     fig.text(0.035, 0.84, subtitle, fontsize=F.FS_SUB - 1, color=F.INK2, ha="left", va="top")
 
-    # left: wall-clock against K
     ax = fig.add_axes([0.075, 0.12, 0.43, 0.56])
     for name, words, formula, color in LINES:
         k, t = _series(res, name)
@@ -56,11 +47,8 @@ def make(res, path):
             ax.text(k[-1], t[-1] * 1.9, f"({name}) {words}: {formula} variables", ha="right", va="bottom",
                     fontsize=F.FS_NOTE, color=F.INK)
         else:
-            # the last K within the size cap: a ring marks where the formulation stops
             ax.plot([k[-1]], [t[-1]], linestyle="none", marker="o", markersize=15, markerfacecolor="none",
                     markeredgecolor=F.INK2, markeredgewidth=1.6, zorder=5)
-            # (b) to the right of its ring; (a) in the empty area above and left of its ring, its leader
-            # attached to the label's left end so that it crosses neither line (b) nor label (b)
             offset = (-30, 62) if name == "a" else (24, 10)
             ax.annotate(f"({name}) {words}: {formula} variables, stops at K = {k[-1]}", (k[-1], t[-1]),
                         xytext=offset, textcoords="offset points", ha="left", va="center",
@@ -78,7 +66,6 @@ def make(res, path):
     ax.set_title(f"Solve time; rings: last K under the cap of {cap:,} variables", loc="left", pad=30,
                  fontsize=F.FS_PANEL - 1)
 
-    # right: satellites by number of burns
     ax = fig.add_axes([0.62, 0.12, 0.35, 0.56])
     h_fix = np.array(bm["histogram_fixed_tie_break"])
     h_det = np.array(bm["histogram_balanced_deterministic"])
@@ -89,7 +76,6 @@ def make(res, path):
     w = 0.38
     for off, h, color, label in ((-w / 2 - 0.02, h_fix, F.MUTED, "fixed tie-break (the project's fixed rule)"),
                                  (w / 2 + 0.02, h_det, F.INK, "balanced, deterministic")):
-        # greys and ink only: the right panel uses no hue of the left panel
         ax.bar(x + off, h, width=w, color=color, label=label, zorder=3, linewidth=0)
         for xi, v in zip(x + off, h):
             if v > 0:

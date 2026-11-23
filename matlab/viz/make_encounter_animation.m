@@ -1,13 +1,10 @@
 function out = make_encounter_animation()
-% Renders the encounter-plane animation (MP4, GIF, final PNG) and writes results/viz_encounter_plane.json.
 root = setup_paths();
 S = load_scenario();
 E = load_expected();
 P = load_params();
 st = viz_style();
 
-% Stage cells in MATLAB one-based indices (a1, a2): nobody burns, the public rule's largest cell,
-% and the private rule's modal recommendation (stored zero-based in the JSON).
 Tpub = E.baseline.schemes.public.table;
 [~, iPub] = max(Tpub(:));
 [pa1, pa2] = ind2sub(size(Tpub), iPub);
@@ -48,7 +45,6 @@ titleText = 'Each burn slides the uncertainty ellipse away from satellite 1';
 subtitleText = sprintf('Encounter plane at closest approach: a 1 cm/s burn moves the pass point %.0f m.', S.gain*0.01);
 [fig, ax] = viz_figure(titleText, subtitleText);
 
-% Left panel: encounter plane
 set(ax, 'Position', [0.075 0.13 0.555 0.60], 'XLim', [-420 1000], 'YLim', [-175 205]);
 xlabel(ax, '\xi: along the bisector of the two velocity directions (m)', 'Interpreter', 'tex');
 ylabel(ax, '\zeta: radial (m)', 'Interpreter', 'tex');
@@ -101,7 +97,6 @@ text(ax, 995, -170, 'ellipses: 1, 2, 3 sigma of the combined position uncertaint
     'FontName', st.font, 'FontSize', 13, 'Color', st.muted, 'HorizontalAlignment', 'right', ...
     'VerticalAlignment', 'bottom', 'Interpreter', 'none');
 
-% Right panel: collision probability on a log scale
 axR = axes(fig, 'Position', [0.745 0.13 0.20 0.60]);
 viz_axes(axR);
 set(axR, 'YScale', 'log', 'YLim', [1e-10 1e-2], 'YTick', 10.^(-10:2:-2), ...
@@ -123,7 +118,6 @@ hVL = plot(axR, [0.5 0.5], [pc0 pc0], '-', 'Color', st.axis, 'LineWidth', 1.6);
 hPc = plot(axR, 0.5, pc0, 'o', 'MarkerSize', 12, 'MarkerFaceColor', st.orange, ...
     'MarkerEdgeColor', 'w', 'LineStyle', 'none');
 
-% Frame schedule: rows are [u1 u2 repeats reachedStage]; reachedStage is 0 when no stage is reached.
 B = zeros(0, 4);
 B = [B; uStage(1,:) 45 1];
 for j = 1:90

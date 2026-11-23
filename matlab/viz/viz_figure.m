@@ -1,5 +1,4 @@
 function [fig, ax] = viz_figure(titleText, subtitleText)
-% Creates the hidden 1280x720 figure with a left-aligned title, subtitle and one styled axes.
 st = viz_style();
 fig = figure('Visible', 'off', 'Color', 'w', 'Units', 'pixels', ...
     'Position', [60 60 1280 720], 'InvertHardcopy', 'off', 'PaperPositionMode', 'auto');

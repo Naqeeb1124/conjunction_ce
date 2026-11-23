@@ -1,5 +1,4 @@
 function st = viz_style()
-% Returns colours as RGB rows in [0,1], font names, type sizes (pt) and animation settings.
 hex = @(h) sscanf(h(2:end), '%2x')' / 255;
 st.ink = hex('#0b0b0b');
 st.ink2 = hex('#52514e');

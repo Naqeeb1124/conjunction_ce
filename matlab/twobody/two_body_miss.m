@@ -1,9 +1,4 @@
 function out = two_body_miss(S, u1, u2, propagator)
-%TWO_BODY_MISS Miss vector after two tangential burns, by two-body propagation.
-%   out = two_body_miss(S, u1, u2, propagator) with propagator 'ode' (default) or 'kepler'.
-%   Both satellites go back by T_lead, burn along their velocity, then return to t = 0.
-%   *_lin_axes: straight-line closest approach in the nominal axes; xi, zeta, along: true
-%   closest approach in the axes built from the velocities at that time.
 if nargin < 4 || isempty(propagator)
     propagator = 'ode';
 end

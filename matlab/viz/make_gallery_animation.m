@@ -1,5 +1,4 @@
 function out = make_gallery_animation()
-% Renders the gallery of twelve conjunction geometries (MP4, GIF, final PNG) and writes results/viz_gallery.json.
 root = setup_paths();
 P = load_params();
 st = viz_style();
@@ -53,9 +52,9 @@ for i = 1:nCase
     line1 = sprintf('op 1: %s,  op 2: %s', lower(P.action_names{g.a1}), ...
         lower(P.action_names{g.a2}));
     if g.tie
-        line1 = [line1 '  (tie)']; %#ok<AGROW>
+        line1 = [line1 '  (tie)'];
     elseif g.prob < 1 - 1e-9
-        line1 = [line1 sprintf('  (%.0f%%)', 100 * g.prob)]; %#ok<AGROW>
+        line1 = [line1 sprintf('  (%.0f%%)', 100 * g.prob)];
     end
     line2 = sprintf('pass %.0f m -> %.0f m,  Pc %s -> %s', g.miss_before, g.miss_after, ...
         sprintf('%.1e', g.pc_before), sprintf('%.1e', g.pc_after));
@@ -116,7 +115,6 @@ out = R;
 end
 
 function H = build_panel(ax, g, st, nSweep)
-% Draws the static parts of one panel and creates the objects that the frames update.
 Si = g.S;
 v = Si.v;
 half = g.half;
@@ -219,7 +217,6 @@ H.hE = hE;
 end
 
 function set_panel_frame(H, k)
-% Moves the markers of one panel to frame k and switches on the stamps once tau has passed them.
 t = H.tau(k);
 if ~H.nobody
     if t < 0
@@ -256,12 +253,10 @@ end
 end
 
 function tf = in_panel(H, p)
-% True when the point p lies inside the panel limits.
 tf = p(1) >= H.xl(1) && p(1) <= H.xl(2) && p(2) >= H.yl(1) && p(2) <= H.yl(2);
 end
 
 function s = onoff(tf)
-% Maps a logical to the Visible property value.
 if tf
     s = 'on';
 else
@@ -270,6 +265,5 @@ end
 end
 
 function c = mix_white(col)
-% Mixes a colour with 55 % white.
 c = 0.45 * col + 0.55;
 end

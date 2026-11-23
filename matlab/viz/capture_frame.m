@@ -1,5 +1,4 @@
 function frame = capture_frame(fig)
-% Renders the figure and returns it as a uint8 RGB array of exactly 720 x 1280 x 3.
 drawnow;
 try
     img = getframe(fig);

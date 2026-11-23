@@ -1,8 +1,4 @@
 function ca = closest_approach(r1, v1, r2, v2, mu, propagator, tol)
-%CLOSEST_APPROACH True time of closest approach of two two-body orbits by Newton iteration.
-%   Solves f(t) = dot(rho(t), w(t)) = 0 starting at the straight-line time, always propagating
-%   from the given states (never chaining); step = -f / (w.w + rho.arel). propagator is 'ode'
-%   or 'kepler'. Returns t, t_lin, states and rho, w at the converged time.
 if strcmp(propagator, 'ode')
     prop = @(r, v, t) propagate_ode(r, v, t, mu);
 else

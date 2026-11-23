@@ -1,5 +1,4 @@
 function anim = animation_open(name, fps)
-% Opens an MPEG-4 writer for figures/<name>.mp4 and returns the animation state struct.
 root = setup_paths();
 outDir = fullfile(root, 'figures');
 if ~isfolder(outDir)

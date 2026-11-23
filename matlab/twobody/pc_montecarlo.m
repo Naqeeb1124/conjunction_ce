@@ -1,9 +1,4 @@
 function mc = pc_montecarlo(S, out, n, seed)
-%PC_MONTECARLO Importance-sampled collision probability of a propagated encounter.
-%   Relative positions are drawn uniformly on a disc of radius mc_proposal_radius_hbr*hbr in the
-%   encounter plane (plus a Gaussian offset along the relative velocity), each sample is
-%   propagated to its true closest approach, and hits are weighted by the Gaussian miss density
-%   divided by the uniform proposal density.
 P = load_params();
 tb = P.two_body_check;
 R = S.hbr;

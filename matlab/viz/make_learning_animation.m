@@ -1,5 +1,4 @@
 function out = make_learning_animation()
-% Renders the learning animation (MP4, GIF, final PNG) and writes results/viz_learning.json.
 root = setup_paths();
 E = jsondecode(fileread(fullfile(root, 'expected.json')));
 L = E.learning;
@@ -76,8 +75,8 @@ for i = 1:numel(kcs)
             a = j(end);
             b = a + 1;
             t = (log10(kc) - log10(kvec(a))) / (log10(kvec(b)) - log10(kvec(a)));
-            ys(end+1) = 10 ^ (log10(yv(a)) + t * (log10(yv(b)) - log10(yv(a)))); %#ok<AGROW>
-            xs(end+1) = kc; %#ok<AGROW>
+            ys(end+1) = 10 ^ (log10(yv(a)) + t * (log10(yv(b)) - log10(yv(a))));
+            xs(end+1) = kc;
         end
         set(lines{s}, 'XData', xs, 'YData', ys);
         set(heads{s}, 'XData', xs(end), 'YData', ys(end));
@@ -96,7 +95,7 @@ for i = 1:numel(kcs)
 end
 
 save_final_png(fig, 'learning');
-info = animation_close(anim); %#ok<NASGU>
+info = animation_close(anim);
 
 R.k = get(hM0, 'XData');
 R.k = R.k(:);

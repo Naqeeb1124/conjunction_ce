@@ -1,6 +1,4 @@
 function [r, v] = propagate_ode(r0, v0, t, mu, reltol, abstol)
-%PROPAGATE_ODE Two-body propagation of row vectors r0, v0 over time t (any sign) with ode113.
-%   Tolerances default to the two_body_check values of params.json.
 if nargin < 5 || isempty(reltol) || nargin < 6 || isempty(abstol)
     P = load_params();
     if nargin < 5 || isempty(reltol)

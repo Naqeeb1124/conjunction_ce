@@ -1,5 +1,4 @@
 function info = animation_close(anim)
-% Closes the MP4 and writes figures/<name>.gif, thinning and shrinking the frames if the file reaches 7.5 MB.
 close(anim.writer);
 mp4Path = fullfile(anim.root, 'figures', [anim.name '.mp4']);
 gifPath = fullfile(anim.root, 'figures', [anim.name '.gif']);
@@ -23,7 +22,6 @@ fprintf('mp4: %s | gif: %s | n_frames: %d | gif_bytes: %d\n', mp4Path, gifPath, 
 end
 
 function bytes = write_gif_frames(frames, delay, gifPath)
-% Writes the frames with one shared 128-colour map built from the last frame stacked on the middle frame.
 stack = vertcat(frames{end}, frames{ceil(numel(frames) / 2)});
 [~, map] = rgb2ind(stack, 128, 'nodither');
 for i = 1:numel(frames)

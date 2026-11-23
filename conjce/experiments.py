@@ -1,4 +1,3 @@
-"""The experiments.  ``run_all.py`` calls these and stores the numbers."""
 from __future__ import annotations
 
 import dataclasses
@@ -13,30 +12,21 @@ from . import model as M
 from . import scenario as SC
 
 K_GRID = (1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200, 300, 500, 700, 1000, 2000, 5000, 10000)
-STEP_UNIFORM = 1e-5         # margins are fractions of the satellite's value, like the cost tables
+STEP_UNIFORM = 1e-5
 STEP_TARGETED = 2e-5
 
 
-# helpers
 def nominal(scn: M.Scenario):
     c1, c2 = M.cost_tables(scn)
     return c1, c2, M.coordinator_cost_table(scn), M.pc_table(scn)
 
 
 def select_mixed_nash(c1, c2):
-    """The equilibrium used as the 'no coordinator' prediction: the one with the most mixing.
-    With two asymmetric pure equilibria and no way to agree on one, this is the mixed one."""
     eqs = G.support_enumeration(c1, c2)
     return max(eqs, key=lambda e: (np.count_nonzero(e[0] > 1e-9) + np.count_nonzero(e[1] > 1e-9)))
 
 
 def margin_family(c1, c2, obj, rows, step: float, mu_max: float = 2e-3):
-    """Every feasible, genuinely private rule on a margin grid: a list of dicts (mu, x, objective).
-
-    ``rows`` says where the margin applies (see ``games.solve_private``).  The family stops when
-    the program becomes infeasible or when every recommendation reveals what the other operator
-    was told.  Such a rule is public in effect, so it is not counted as a private one.
-    """
     out = []
     for mu in np.arange(0.0, mu_max + 0.5 * step, step):
         res = G.solve_private(c1, c2, obj, margin=float(mu), margin_rows=rows)
@@ -51,15 +41,6 @@ def _nearest(family, mu):
 
 
 def baseline_schemes(scn: M.Scenario):
-    """The recommendation rules compared throughout, all computed from nominal information.
-
-    Two margin families:
-
-    * "uniform": the same margin on every incentive constraint (the chance-constrained
-      correlated-equilibrium form);
-    * "targeted": the margin only on the constraints where an operator who has to learn the rule
-      can go wrong (``games.uncertain_belief_rows``, evaluated on the zero-margin rule).
-    """
     c1, c2, obj, _ = nominal(scn)
     p, q = select_mixed_nash(c1, c2)
     fam_uni = margin_family(c1, c2, obj, "all", STEP_UNIFORM)
@@ -84,7 +65,6 @@ def baseline_schemes(scn: M.Scenario):
 
 
 def _cost_stats(scn, y, pc=None):
-    """Mean and standard error of the coordinator's cost over replicates, plus the usual metrics."""
     obj = M.coordinator_cost_table(scn, pc)
     per_rep = np.sum(y * obj, axis=(-2, -1))
     m = M.outcome_metrics(scn, y, pc)
@@ -92,9 +72,7 @@ def _cost_stats(scn, y, pc=None):
     return m
 
 
-# E1
 def nominal_comparison(scn: M.Scenario) -> dict:
-    """Each rule's outcome if operators know the rule and the coordinator knows the costs."""
     schemes, _, _ = baseline_schemes(scn)
     c1, c2, _, _ = nominal(scn)
     out = {}
@@ -106,9 +84,7 @@ def nominal_comparison(scn: M.Scenario) -> dict:
     return out
 
 
-# E2
 def learning_curve(scn, x, ks=K_GRID, n_rep=40000, seed=0) -> list:
-    """Realised outcome of rule x when both operators learned it from k past events (costs known)."""
     c1, c2, _, _ = nominal(scn)
     rng = np.random.default_rng(seed)
     rows = []
@@ -123,14 +99,6 @@ def learning_curve(scn, x, ks=K_GRID, n_rep=40000, seed=0) -> list:
 
 def best_margin_per_k(scn, family, ks=K_GRID, n_select=20000, n_eval=100000, seed=0,
                       sig_cost=None, sig_k=0.1) -> list:
-    """For each k: pick the margin with the lowest realised cost on one set of simulations, then
-    re-evaluate that choice on an independent set, so the reported number is not biased by the
-    selection.
-
-    With ``sig_cost=None`` the costs are the nominal ones and only the learning histories are
-    random.  Otherwise every replicate is also a sampled true game (cost log-sd ``sig_cost``,
-    covariance-scale log-sd ``sig_k``).  ``k=None`` in ``ks`` means the rule is known.
-    """
     if sig_cost is None:
         c1, c2, _, _ = nominal(scn)
         sel = {"c1": c1, "c2": c2, "pc": None}
@@ -155,8 +123,6 @@ def best_margin_per_k(scn, family, ks=K_GRID, n_select=20000, n_eval=100000, see
 
 
 def crossover(rows, reference_cost: float, n_sigma: float = 3.0, min_gain: float = 0.01):
-    """Smallest k on the grid from which the rule stays below the reference cost by at least
-    ``min_gain`` (relative) and by more than n_sigma standard errors, or None."""
     below = [r["coordinator_cost"] + n_sigma * r["cost_se"] < reference_cost * (1.0 - min_gain) for r in rows]
     for i, r in enumerate(rows):
         if all(below[i:]):
@@ -166,9 +132,6 @@ def crossover(rows, reference_cost: float, n_sigma: float = 3.0, min_gain: float
 
 def margin_scan(scn, family, ks=(15, 30, 100, 300), n_rep=100000, seed=6, n_games=10000,
                 uncertainty=((0.1, 0.05), (0.3, 0.1))) -> list:
-    """For every margin in a family: what the margin costs when everything is known, how often a
-    recommendation is not followed when the rule was learned from k events, and how often some
-    recommendation would not be followed when costs are uncertain (rule known)."""
     c1, c2, _, _ = nominal(scn)
     rng = np.random.default_rng(seed)
     game_sets = [M.sample_true_games(scn, n_games, np.random.default_rng(seed + 1 + i), sc, sc, sc, sk)
@@ -190,12 +153,6 @@ def margin_scan(scn, family, ks=(15, 30, 100, 300), n_rep=100000, seed=6, n_game
 
 
 def two_parameter_grid(scn, grid_n: int):
-    """The (alpha_1, alpha_2) grid of three-action recommendation tables.
-
-    alpha_i is the probability, given that operator i is told to make a small burn, that the other
-    operator was told not to burn.  Each alpha_i runs over ``grid_n`` points from the threshold
-    a_star[i] to 0.97.  Returns (tables, alphas, a_star): a list of 3x3 tables, the matching list
-    of (alpha_1, alpha_2) pairs, and the array of the two thresholds."""
     _, _, obj, pc = nominal(scn)
     kappa = M.maneuver_cost_fraction(scn)[:, 1]
     p0, p1, p2 = pc[0, 0], pc[1, 0], pc[1, 1]
@@ -214,15 +171,6 @@ def two_parameter_grid(scn, grid_n: int):
 
 def two_parameter_check(scn, targeted_family, ks=(10, 15, 20, 30, 50, 100, 300, 1000), grid_n=30,
                         n_select=8000, n_eval=100000, seed=9) -> dict:
-    """Realised cost of the one-parameter targeted family against the best two-parameter table.
-
-    In the baseline every private rule uses three joint actions: both small, only operator 1,
-    only operator 2.  Such a table is fixed by two numbers, alpha_1 and alpha_2: the probability,
-    given that an operator is told to burn, that the other was told not to.
-    This scans a grid of (alpha_1, alpha_2), picks the best table for each k on one set of
-    simulated histories, re-evaluates it on an independent set, and does the same for the
-    one-parameter family.
-    """
     c1, c2, _, _ = nominal(scn)
     x0 = targeted_family[0]["x"]
     support = {tuple(ix) for ix in np.argwhere(x0 > 1e-9)}
@@ -246,9 +194,7 @@ def two_parameter_check(scn, targeted_family, ks=(10, 15, 20, 30, 50, 100, 300, 
     return {"alpha_thresholds": a_star.tolist(), "grid_n": grid_n, "rows": rows}
 
 
-# E3
 def cost_uncertainty_eval(scn, schemes: dict, games: dict) -> dict:
-    """Known rule, unknown costs: the coordinator used nominal costs, the true game is a sample."""
     out = {}
     for name, x in schemes.items():
         res = I.realised_joint(x, games["c1"], games["c2"], k=None)
@@ -264,7 +210,6 @@ def cost_uncertainty_eval(scn, schemes: dict, games: dict) -> dict:
 
 
 def true_game_nash(scn, games: dict, n_max: int = 2000) -> dict:
-    """No coordinator: in each sampled true game the operators play its most-mixed equilibrium."""
     n = min(n_max, games["c1"].shape[0])
     ys = np.zeros((n, 3, 3))
     n_eq = np.zeros(n, dtype=int)
@@ -281,8 +226,6 @@ def true_game_nash(scn, games: dict, n_max: int = 2000) -> dict:
 
 def uncertainty_sweep(scn, schemes: dict, n=10000, seed=1,
                       cost_sigmas=(0.0, 0.05, 0.1, 0.2, 0.3), k_sigmas=(0.0, 0.05, 0.1, 0.2, 0.3)) -> dict:
-    """Violation rate and realised cost of each rule as the coordinator's knowledge of costs and
-    of the covariance degrades."""
     out = {"cost_sigmas": list(cost_sigmas), "k_sigmas": list(k_sigmas), "violation_rate": {}, "realised_cost": {}}
     for name in schemes:
         out["violation_rate"][name] = np.zeros((len(cost_sigmas), len(k_sigmas))).tolist()
@@ -299,26 +242,11 @@ def uncertainty_sweep(scn, schemes: dict, n=10000, seed=1,
 
 
 def clopper_pearson_upper(count: int, n: int, confidence: float) -> float:
-    """Exact one-sided upper confidence bound for a binomial proportion."""
     return 1.0 if count >= n else float(stats.beta.ppf(confidence, count + 1, n - count))
 
 
 def calibrate_margin(scn, families: dict, eps_list=(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5), n_cal=10000,
                      n_test=10000, seed=2, beta=1e-3, sig_cost=0.3, sig_k=0.1) -> dict:
-    """Sample-based chance constraint over a finite list of candidate rules.
-
-    Candidates: every rule in the margin families, plus each pure Nash equilibrium of the nominal
-    game as a public rule.  For each candidate, count on n_cal sampled true games how often some
-    recommendation would not be followed, and turn the count into an exact binomial upper
-    confidence bound (Clopper-Pearson) at level 1 - beta / M, M being the number of candidates.
-    With probability at least 1 - beta every bound holds at once (union bound).
-
-    Two selections are reported and then tested on n_test fresh games:
-    * "chance-constrained": the lowest nominal coordinator cost among candidates whose bound is
-      at most eps (the usual reading of a chance constraint);
-    * "realised-cost": the candidate with the lowest average realised coordinator cost on the
-      calibration games, where operators who would deviate do deviate.
-    """
     c1, c2, obj, _ = nominal(scn)
     cal = M.sample_true_games(scn, n_cal, np.random.default_rng(seed), sig_cost, sig_cost, sig_cost, sig_k)
     test = M.sample_true_games(scn, n_test, np.random.default_rng(seed + 1), sig_cost, sig_cost, sig_cost, sig_k)
@@ -328,7 +256,7 @@ def calibrate_margin(scn, families: dict, eps_list=(0.01, 0.02, 0.05, 0.1, 0.2, 
         for f in fam:
             if f["mu"] == 0.0:
                 if seen_zero:
-                    continue                     # the zero-margin rule is the same in every family
+                    continue
                 seen_zero = True
             candidates.append({"kind": f"private, {name} margin", "mu": f["mu"], "x": f["x"],
                                "objective": f["objective"]})
@@ -372,12 +300,6 @@ def calibrate_margin(scn, families: dict, eps_list=(0.01, 0.02, 0.05, 0.1, 0.2, 
 
 
 def share_pc_below(scn, k, threshold, chunk: int = 10000) -> np.ndarray:
-    """For each joint action, the share of covariance scales k with Pc(a; k) <= threshold.
-
-    The collision-probability tables are built ``chunk`` scales at a time: the quadrature in
-    ``pc_foster`` needs about 55 kB per scale, so all 200,000 scales at once would need about 11 GB.
-    The counts are integers, so the result does not depend on the chunk size.
-    """
     k = np.asarray(k, dtype=float)
     count = np.zeros((scn.n_actions, scn.n_actions), dtype=np.int64)
     for start in range(0, k.size, chunk):
@@ -387,14 +309,6 @@ def share_pc_below(scn, k, threshold, chunk: int = 10000) -> np.ndarray:
 
 def safety_constraint_check(scn, sig_k_list=(0.1, 0.2, 0.3), delta=0.05, n=200000, seed=7,
                             chunk: int = 10000) -> dict:
-    """A chance constraint on collision probability, added to the coordinator's program.
-
-    For each joint action a, q(a) = P(Pc(a; k) <= threshold) over the uncertain covariance scale k
-    (estimated from n draws).  The constraint is  sum_a x(a) * (1 - q(a)) <= delta : the
-    probability, over both the coordinator's draw and the covariance scale, that the recommended
-    joint action leaves Pc above the threshold is at most delta.  It is linear in x.
-    The n draws are made at once and evaluated ``chunk`` at a time.
-    """
     c1, c2, obj, _ = nominal(scn)
     out = {"delta": delta, "threshold": scn.pc_threshold, "rows": []}
     for i, sk in enumerate(sig_k_list):
@@ -417,16 +331,9 @@ def safety_constraint_check(scn, sig_k_list=(0.1, 0.2, 0.3), delta=0.05, n=20000
     return out
 
 
-# E4
 def learning_with_cost_uncertainty(scn, families: dict, schemes: dict, ks=(15, 30, 100, 300, 1000, None),
                                    cost_sigmas=(0.1, 0.3), sig_k=0.1, n_select=20000, n_eval=50000,
                                    seed=3) -> dict:
-    """Both imperfections at once: operators learned the rule from k events, and the true costs
-    differ from the nominal ones the coordinator used.  ``k=None`` means the rule is known.
-
-    For each cost-uncertainty level: the public rule, the largest uniform margin, and the best
-    margin of the targeted family for each k (picked on one sample, evaluated on another).
-    """
     out = {}
     for sc in cost_sigmas:
         ev = M.sample_true_games(scn, n_eval, np.random.default_rng(seed + 2), sc, sc, sc, sig_k)
@@ -446,9 +353,7 @@ def learning_with_cost_uncertainty(scn, families: dict, schemes: dict, ks=(15, 3
     return out
 
 
-# E5
 def random_instance(rng: np.random.Generator) -> M.Scenario:
-    """One draw from the instance family."""
     sx = rng.uniform(80.0, 160.0)
     sz = rng.uniform(25.0, 60.0)
     log_u = lambda lo, hi: float(np.exp(rng.uniform(np.log(lo), np.log(hi))))
@@ -464,8 +369,6 @@ def random_instance(rng: np.random.Generator) -> M.Scenario:
 
 
 def _saving_summary(rows, public_key: str, dv_key: str, pc_key: str, anti) -> dict:
-    """Share of instances with a private gain over the public benchmark ``public_key`` and the
-    size of that gain.  Instances without a finite benchmark are left out (counted separately)."""
     pub = np.array([np.nan if r[public_key] is None else r[public_key] for r in rows], dtype=float)
     prv = np.array([r["private_cost"] for r in rows], dtype=float)
     ok = np.isfinite(pub)
@@ -486,14 +389,6 @@ def _saving_summary(rows, public_key: str, dv_key: str, pc_key: str, anti) -> di
 
 
 def private_vs_public_family(n_instances=300, seed=4) -> dict:
-    """Nominal gap between the best private rule and the best public rule over random instances.
-
-    The main benchmark is ``games.solve_public_hull``: the best mixture over all Nash equilibria,
-    mixed ones included.  ``summary["pure_only_benchmark"]`` repeats the statistics against
-    ``games.solve_public`` (pure equilibria only), the public rule used in the baseline
-    experiments.  The pure-only benchmark draws no random numbers, so both benchmarks see the same
-    instances.
-    """
     rng = np.random.default_rng(seed)
     rows = []
     for _ in range(n_instances):
@@ -546,14 +441,12 @@ def private_vs_public_family(n_instances=300, seed=4) -> dict:
     return {"summary": summary, "rows": rows}
 
 
-# E6
 def _obedience_feasible(A) -> bool:
-    """Is there a probability table x with A @ x <= 0?  (Plain HiGHS feasibility solve.)"""
     from scipy.optimize import linprog
     A = np.asarray(A, dtype=float).reshape(-1, 9)
     if A.shape[0] == 0:
         return True
-    scale = np.max(np.abs(A), axis=1, keepdims=True)          # same row scaling as games._solve_lp
+    scale = np.max(np.abs(A), axis=1, keepdims=True)
     scale[scale == 0] = 1.0
     res = linprog(np.zeros(A.shape[1]), A_ub=A / scale, b_ub=np.zeros(A.shape[0]),
                   A_eq=np.ones((1, A.shape[1])), b_eq=[1.0], bounds=[(0, None)] * A.shape[1], method="highs")
@@ -563,22 +456,6 @@ def _obedience_feasible(A) -> bool:
 
 
 def infeasible_subset(c1s, c2s, time_limit: float = 60.0):
-    """An irreducible infeasible subset of the scenario program's obedience constraints.
-
-    The program asks for one probability table x (x >= 0, sum 1) that satisfies the 12 obedience
-    constraints of every sampled game.  If that is infeasible, a deletion filter finds a subset of
-    constraints that is infeasible on its own while every proper subset is feasible:
-
-    1. over games: drop blocks of games (halving the block size down to one game) whenever the
-       rest stays infeasible;
-    2. over constraints: within the remaining games, drop single constraints whenever the rest
-       stays infeasible.
-
-    Infeasibility is monotone (fewer constraints, larger feasible set), so a member kept in a
-    single-deletion pass stays necessary after later deletions.  Returns None when the program
-    is feasible, otherwise a dict with the members as (game, row) pairs (row indexes
-    ``games.obedience_system``'s info list), and the result of re-checking both properties.
-    """
     t0 = time.time()
     c1s, c2s = np.asarray(c1s, dtype=float), np.asarray(c2s, dtype=float)
     per_game = [G.obedience_system(a, b)[0] for a, b in zip(c1s, c2s)]
@@ -597,7 +474,7 @@ def infeasible_subset(c1s, c2s, time_limit: float = 60.0):
                 raise TimeoutError("deletion filter over games exceeded the time limit")
             trial = keep[:i] + keep[i + block:]
             if not _obedience_feasible(rows_of(trial)):
-                keep = trial                     # this block is not needed for the conflict
+                keep = trial
             else:
                 i += block
         if block == 1:
@@ -627,7 +504,6 @@ def infeasible_subset(c1s, c2s, time_limit: float = 60.0):
 
 
 def describe_conflict(games: dict, subset: dict) -> dict:
-    """The members of ``infeasible_subset`` with the sampled parameters of their games."""
     _, _, info = G.obedience_system(games["c1"][0], games["c2"][0])
     cons = []
     for g, j in subset["members"]:
@@ -648,7 +524,6 @@ def describe_conflict(games: dict, subset: dict) -> dict:
 
 
 def scenario_program_check(scn, eps=0.05, beta=1e-6, d=9, seed=5, sig_cost=0.3, sig_k=0.1, n_test=10000) -> dict:
-    """The plain scenario program: impose obedience in every one of N sampled games."""
     obj = M.coordinator_cost_table(scn)
     out = {"eps": eps, "beta": beta, "d": d, "sig_cost": sig_cost, "sig_k": sig_k, "runs": []}
     test = M.sample_true_games(scn, n_test, np.random.default_rng(seed + 99), sig_cost, sig_cost, sig_cost, sig_k)
@@ -664,27 +539,14 @@ def scenario_program_check(scn, eps=0.05, beta=1e-6, d=9, seed=5, sig_cost=0.3, 
             run.update(table=res["x"].tolist(), nominal_cost=res["objective"],
                        test_violation=float(np.mean(ev["obey"] < 1 - 1e-9)))
         else:
-            # an irreducible set of clashing obedience constraints (None if the plain
-            # feasibility solve disagrees with the optimisation and finds the program feasible)
             sub = infeasible_subset(g["c1"], g["c2"])
             run["conflict"] = describe_conflict(g, sub) if sub is not None else None
         out["runs"].append(run)
     return out
 
 
-# E7
 def published_pc_variant(scn, schemes: dict, n=10000, seed=8,
                          levels=((0.1, 0.05), (0.1, 0.2), (0.1, 0.3), (0.3, 0.1), (0.0, 0.3))) -> list:
-    """Who knows the covariance?  Two readings of the same sampled true games.
-
-    * "true scale": operators know the true covariance scale, so their incentives use the true
-      collision probabilities (the assumption used everywhere else);
-    * "published": operators act on the coordinator's published, nominal collision probabilities
-      and only their cost weights differ from what the coordinator assumed.
-
-    In both readings what actually happens is scored with the true collision probabilities.
-    ``levels`` are (cost log-sd, covariance-scale log-sd) pairs.
-    """
     pc_nominal = M.pc_table(scn)
     out = []
     for i, (sc, sk) in enumerate(levels):

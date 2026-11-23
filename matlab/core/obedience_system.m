@@ -1,9 +1,4 @@
 function [A, Pm, info] = obedience_system(c1, c2)
-%OBEDIENCE_SYSTEM Linear obedience constraints for the coordinator's recommendations.
-%   [A, Pm, info] = obedience_system(c1, c2). Each row is one constraint "following the
-%   recommendation r is no worse than deviating to d", flattened row-major over the 3x3
-%   joint distribution. Rows: player 1 with (r, d), then player 2 with (r, d), d ~= r.
-%   Pm holds the matching probability-mass coefficients; info(j,:) = [player r d], one-based.
 A = zeros(12, 9);
 Pm = zeros(12, 9);
 info = zeros(12, 3);

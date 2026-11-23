@@ -1,11 +1,9 @@
 function out = make_orbits_animation()
-% Renders the orbit animation (MP4, GIF, final PNG) and writes results/viz_orbits_3d.json.
 root = setup_paths();
 S = load_scenario();
 E = load_expected();
 st = viz_style();
 
-% Recommended burns (one-based action indices) and the two cases: no burns, and the burns.
 rec = E.baseline.ce_modal_recommendation(:).' + 1;
 u = S.burns(rec);
 u = u(:).';
@@ -17,7 +15,6 @@ pcB = pc2d(oB.xi, oB.zeta, S.sigma_xi, S.sigma_zeta, S.hbr);
 T = S.T;
 tz = 0.2;
 
-% Time grids in s; both contain tau = 0 exactly. The long grid runs from -T/4 to T/16.
 tauZ = (-200:200) * (tz / 200);
 tauL = (-2000:500) * (T / 8000);
 dZA = separation(oA, S, tauZ);
@@ -25,7 +22,6 @@ dZB = separation(oB, S, tauZ);
 dLA = separation(oA, S, tauL);
 dLB = separation(oB, S, tauL);
 
-% Frame schedule: approach with slowing down, slow motion through closest approach, departure.
 s = linspace(0, 1, 170);
 tauApp = -tz - (T/4 - tz) * (1 - s).^2;
 tauSlow = linspace(-tz, tz, 90);
@@ -39,21 +35,18 @@ subtitleText = sprintf(['Both satellites at %.0f km altitude. Burns of %g and %g
 [fig, axDefault] = viz_figure(titleText, subtitleText);
 delete(axDefault);
 
-% Left: 3D view. Earth of radius r_earth, orbit rings from case A, satellites with trails.
 ax3 = axes('Parent', fig, 'Units', 'normalized', 'Position', [0.12 0.16 0.38 0.58]);
 hold(ax3, 'on');
 [Xe, Ye, Ze] = sphere(36);
 surf(ax3, S.r_earth*Xe, S.r_earth*Ye, S.r_earth*Ze, 'FaceColor', [0.93 0.95 0.97], ...
     'EdgeColor', st.grid, 'FaceLighting', 'none', 'EdgeLighting', 'none');
 
-% Orbit rings of both satellites, sampled every degree.
 th = linspace(0, 2*pi, 361);
 R1 = ringPoints(oA.r1, oA.v1, th);
 R2 = ringPoints(oA.r2, oA.v2, th);
 plot3(ax3, R1(1,:), R1(2,:), R1(3,:), '-', 'Color', st.blue, 'LineWidth', 1.6);
 plot3(ax3, R2(1,:), R2(2,:), R2(3,:), '-', 'Color', st.orange, 'LineWidth', 1.6);
 
-% Open circle at the crossing point and its label, offset radially outward.
 pX = 0.5 * (oA.r1(:) + oA.r2(:));
 nX = pX / norm(pX);
 plot3(ax3, pX(1), pX(2), pX(3), 'o', 'MarkerSize', 9, 'MarkerFaceColor', 'none', ...
@@ -75,7 +68,6 @@ hRead = annotation(fig, 'textbox', [0.02 0.755 0.47 0.05], 'String', '', ...
     'EdgeColor', 'none', 'FitBoxToText', 'off', 'FontName', st.font, ...
     'FontSize', st.fs_label, 'Color', st.ink, 'HorizontalAlignment', 'left', ...
     'VerticalAlignment', 'bottom', 'Interpreter', 'none');
-% Key for the 3D view, stacked below the readout in the empty top-left corner of the left panel.
 keyTxt = {[char(9679) '  satellite 1'], [char(9679) '  satellite 2'], [char(9675) '  closest approach']};
 keyCol = {st.blue, st.orange, st.ink};
 for kk = 1:3
@@ -89,7 +81,6 @@ annotation(fig, 'textbox', [0.02 0.06 0.52 0.05], 'EdgeColor', 'none', 'FitBoxTo
     S.gain*(u(1)+u(2))), 'FontName', st.font, 'FontSize', st.fs_note, 'Color', st.ink2, ...
     'HorizontalAlignment', 'left', 'VerticalAlignment', 'bottom', 'Interpreter', 'none');
 
-% Right top: distance on a log axis against time in minutes.
 axT = axes('Parent', fig, 'Units', 'normalized');
 viz_axes(axT);
 hold(axT, 'on');
@@ -107,7 +98,6 @@ title(axT, 'Distance between the satellites', 'FontName', st.font, ...
 hTA = plot(axT, NaN, NaN, '-', 'Color', st.ink2, 'LineWidth', st.lw);
 hTB = plot(axT, NaN, NaN, '-', 'Color', st.aqua, 'LineWidth', st.lw);
 
-% Right bottom: the last 0.4 s, distance in km on a linear axis.
 axB = axes('Parent', fig, 'Units', 'normalized');
 viz_axes(axB);
 hold(axB, 'on');
@@ -124,7 +114,6 @@ hMinA = plot(axB, NaN, NaN, 'o', 'MarkerSize', 9, 'MarkerFaceColor', st.ink2, ..
     'MarkerEdgeColor', 'w', 'LineStyle', 'none');
 hMinB = plot(axB, NaN, NaN, 'o', 'MarkerSize', 9, 'MarkerFaceColor', st.aqua, ...
     'MarkerEdgeColor', 'w', 'LineStyle', 'none');
-% Direct labels sit below the two arms of the V, left and right of the minimum.
 hLabA = text(axB, -0.065, 0.45,sprintf('nobody burns:\n%.0f m, Pc %.1e', oA.miss, pcA), ...
     'FontName', st.font, 'FontSize', st.fs_note, 'Color', st.ink2, ...
     'HorizontalAlignment', 'right', 'VerticalAlignment', 'middle', ...
@@ -134,7 +123,6 @@ hLabB = text(axB, 0.065, 0.45,sprintf('after the burns:\n%.0f m, Pc %.1e', oB.mi
     'HorizontalAlignment', 'left', 'VerticalAlignment', 'middle', ...
     'Interpreter', 'none', 'Visible', 'off');
 
-% Frame loop: satellites and trails of case A, growing distance curves of both cases.
 rmax = 0;
 rmin = Inf;
 anim = animation_open('orbits_3d', st.fps);
@@ -201,7 +189,6 @@ R.d_B_long = dLB(:);
 R.r_max = rmax;
 R.r_min = rmin;
 R.n_frames = nFrames;
-% File locations relative to the root, with forward slashes.
 R.file_info = struct('mp4', 'figures/orbits_3d.mp4', 'gif', 'figures/orbits_3d.gif', ...
     'n_frames', info.n_frames, 'gif_bytes', info.gif_bytes);
 
@@ -217,12 +204,10 @@ out = R;
 end
 
 function R = ringPoints(r, v, th)
-% Circle of radius |r| in the plane of r and v: |r| (cos th r/|r| + sin th v/|v|), in m, one column per angle.
 R = norm(r) * (r(:) / norm(r) * cos(th) + v(:) / norm(v) * sin(th));
 end
 
 function P = track(r0, v0, tau, mu)
-% Positions (3 x numel(tau), m) of one satellite on its Kepler orbit at the times tau (s).
 P = zeros(3, numel(tau));
 for k = 1:numel(tau)
     p = propagate_kepler(r0, v0, tau(k), mu);
@@ -231,7 +216,6 @@ end
 end
 
 function d = separation(o, S, tau)
-% Distance (m) between the two satellites at the times tau (s) after closest approach.
 d = zeros(size(tau));
 for k = 1:numel(tau)
     r1 = propagate_kepler(o.r1, o.v1, tau(k), S.mu);
@@ -241,12 +225,11 @@ end
 end
 
 function [x, y] = grownCurve(tg, yg, tn, yn)
-% Grid samples up to time tn, followed by the exact value (tn, yn) when tn lies inside the grid.
 m = tg <= tn;
 x = tg(m);
 y = yg(m);
 if tn >= tg(1) && tn <= tg(end) && (isempty(x) || tn > x(end))
-    x(end+1) = tn; %#ok<AGROW>
-    y(end+1) = yn; %#ok<AGROW>
+    x(end+1) = tn;
+    y(end+1) = yn;
 end
 end

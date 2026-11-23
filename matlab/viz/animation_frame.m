@@ -1,5 +1,4 @@
 function anim = animation_frame(anim, fig, repeat)
-% Captures the figure, writes it repeat times to the MP4 and keeps every second video frame at 450x800 for the GIF.
 if nargin < 3 || isempty(repeat)
     repeat = 1;
 end

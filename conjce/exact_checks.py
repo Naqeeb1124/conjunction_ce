@@ -1,16 +1,3 @@
-"""Exact (sampling-free) evaluation of the learning model in ``inference``.
-
-Everything here uses ``inference.exact_realised_joint``, which enumerates the multinomial counts
-of the past events, so no number below carries Monte Carlo noise (apart from the explicit
-simulation-agreement check).  Both conventions for what an operator knows before it has seen a
-recommendation are evaluated:
-
-* "observed": k - 1 past events plus one observation per recommendation drawn from the true
-  conditional (the convention of every stored learning result);
-* "uniform": exactly k past events; a recommendation never seen leaves a uniform belief.
-
-``run()`` returns a JSON-serialisable dict.
-"""
 from __future__ import annotations
 
 import time
@@ -24,10 +11,9 @@ from . import model as M
 __all__ = ["run", "K_GRID_EXACT", "k_grid", "family_best", "simulation_agreement", "two_parameter_tables",
            "agreement_cases"]
 
-# k = 1..40 and a coarse tail for both families; the uniform family also gets every k from 41 to 130
 K_GRID_EXACT = tuple(range(1, 41)) + (50, 70, 100, 150, 200, 300)
 K_GRID_UNIFORM_EXTRA = tuple(range(41, 131))
-GAIN = 0.01                     # crossover: realised cost at most (1 - GAIN) x the public rule's cost
+GAIN = 0.01
 TWO_PARAMETER_KS = (10, 15, 20, 30, 50, 100)
 TWO_PARAMETER_GRID_N = 25
 AGREEMENT_KS = (5, 50)
@@ -48,7 +34,6 @@ def _cost(x, c1, c2, obj, k, start):
 
 
 def family_best(family, c1, c2, obj, k, start):
-    """Exact minimum of the realised coordinator cost over a family's members at k."""
     best = None
     for f in family:
         cost, obey = _cost(f["x"], c1, c2, obj, k, start)
@@ -67,8 +52,6 @@ def _crossover(rows, public_cost):
 
 
 def two_parameter_tables(scn, grid_n=TWO_PARAMETER_GRID_N):
-    """The (alpha_1, alpha_2) grid of ``experiments.two_parameter_check``: the same function,
-    ``experiments.two_parameter_grid``, with this module's default grid size."""
     return E.two_parameter_grid(scn, grid_n)
 
 
@@ -86,7 +69,6 @@ def _two_parameter_gap(scn, targeted, c1, c2, obj):
 
 
 def agreement_cases(scn=M.BASELINE):
-    """(label, x, k, start) for the simulation-against-exact comparison."""
     _, families, _ = E.baseline_schemes(scn)
     cases = []
     for fam, mu in AGREEMENT_MARGINS.items():
@@ -98,16 +80,6 @@ def agreement_cases(scn=M.BASELINE):
 
 
 def simulation_agreement(scn=M.BASELINE, n_rep=AGREEMENT_N_REP, seed=11) -> dict:
-    """Simulation (``realised_joint``) against exact enumeration: number of standard errors for
-    P(both follow), P(operator i follows) and every cell of y, in every case of ``agreement_cases``.
-
-    The standard error is the sample one.  When the sample standard deviation is at rounding level
-    (below 1e-9: every replicate gave the same value, i.e. no replicate saw a recommendation not
-    followed), it is replaced by sqrt((1 - P_both) / n), with P_both the exact probability that
-    both operators follow.  This bounds the true standard error of every quantity compared: in
-    each replicate, P(both follow), P(operator i follows) and every cell of y differ from their
-    full-obedience values by at most the replicate's probability q that some recommendation is
-    not followed, so their variance is at most E[q^2] <= E[q] = 1 - P_both."""
     c1, c2, _, _ = E.nominal(scn)
     out, worst = [], 0.0
     for i, (label, x, k, start) in enumerate(agreement_cases(scn)):
@@ -141,8 +113,6 @@ def run(scn=M.BASELINE) -> dict:
     c1, c2, obj, _ = E.nominal(scn)
     schemes, families, info = E.baseline_schemes(scn)
     public_cost = float(np.sum(schemes["public"] * obj))
-    # the public rule is a pure Nash profile, so it is followed after any number of events;
-    # record the largest difference between its learned and known-rule cost as a check
     pub_dev = max(abs(_cost(schemes["public"], c1, c2, obj, k, start)[0] - public_cost)
                   for start in I.STARTS for k in K_GRID_EXACT)
 
@@ -170,6 +140,6 @@ def run(scn=M.BASELINE) -> dict:
     return out
 
 
-if __name__ == "__main__":       # pragma: no cover
+if __name__ == "__main__":
     import json
     print(json.dumps(run(), indent=1))

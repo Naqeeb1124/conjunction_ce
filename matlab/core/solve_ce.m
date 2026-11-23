@@ -1,9 +1,4 @@
 function [x, fval, exitflag] = solve_ce(c1, c2, obj, mu, mask)
-%SOLVE_CE Coordinator's correlated equilibrium as a linear program over the 3x3 joint table.
-%   [x, fval, exitflag] = solve_ce(c1, c2, obj, mu, mask) minimises the coordinator cost
-%   subject to the obedience constraints (A + mu * (mask .* Pm)) x <= 0, sum(x) = 1, x >= 0.
-%   mu defaults to 0 and mask to all twelve rows. Infeasible programs return x = [] and
-%   fval = Inf.
 if nargin < 4 || isempty(mu)
     mu = 0;
 end
@@ -12,7 +7,6 @@ if nargin < 5 || isempty(mask)
 end
 [A, Pm] = obedience_system(c1, c2);
 M = A + mu * (mask(:) .* Pm);
-% Scale each inequality row by its largest absolute entry; all-zero rows are left as they are
 rowmax = max(abs(M), [], 2);
 nz = rowmax > 0;
 M(nz, :) = M(nz, :) ./ rowmax(nz);

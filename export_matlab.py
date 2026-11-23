@@ -1,19 +1,3 @@
-"""Export the model parameters and the reference numbers that the MATLAB layer reads.
-
-    .venv\\Scripts\\python export_matlab.py
-
-writes
-
-    matlab/params.json     every model parameter, taken from conjce (nothing is typed again in MATLAB)
-    matlab/expected.json   the numbers the MATLAB code has to reproduce
-
-Deterministic quantities are recomputed here with the conjce functions and compared with
-results/results.json before anything is written; the script stops if they differ.  Simulated
-quantities (the learning curves) are copied from results/results.json.
-
-Index convention in both files: actions are 0 = no burn, 1 = small burn, 2 = large burn, and every
-3x3 table is indexed [a1][a2] (operator 1 = row).  Flattened tables are row-major (a1 * 3 + a2).
-"""
 from __future__ import annotations
 
 import dataclasses
@@ -30,11 +14,8 @@ from conjce import model as M
 ROOT = pathlib.Path(__file__).resolve().parent
 OUT = ROOT / "matlab"
 
-# Sense of each operator's tangential burn along its own velocity: posigrade for satellite 1,
-# retrograde for satellite 2, so that both increase the nominal miss.
 BURN_SIGN = (1.0, -1.0)
 
-# Settings of the two-body check on the MATLAB side (they are not part of the game model).
 ODE_RELTOL = 1e-13
 ODE_ABSTOL = 1e-9
 TCA_TOL_S = 1e-10
@@ -42,7 +23,6 @@ MC_SAMPLES = 2000
 MC_SEED = 1
 MC_PROPOSAL_RADIUS_HBR = 2.0
 
-# The gallery uses the first draws of the random instance family (same generator, same seed).
 GALLERY_SEED = 4
 GALLERY_SIZE = 12
 
@@ -54,7 +34,6 @@ SCHEME_FIELDS = ("table", "delta_v", "mean_pc", "p_exceed", "p_dual_inaction", "
 
 
 def clean(o):
-    """Plain Python containers and numbers, so that json can write them."""
     if isinstance(o, dict):
         return {str(k): clean(v) for k, v in o.items()}
     if isinstance(o, (list, tuple)):
@@ -71,7 +50,6 @@ def clean(o):
 
 
 def dumps(o, level: int = 0) -> str:
-    """JSON with one key per line and each array on one line."""
     pad = "  " * level
     if isinstance(o, dict):
         items = [f"{pad}  {json.dumps(k)}: {dumps(v, level + 1)}" for k, v in o.items()]
@@ -100,18 +78,10 @@ def derived(scn: M.Scenario) -> dict:
 
 
 def sigma_s(scn: M.Scenario) -> float:
-    """1-sigma of the relative position along the relative velocity.
-
-    The game model does not need it (the collision probability depends only on the encounter
-    plane).  It is used to draw Monte Carlo samples and the horizontal uncertainty footprint, and
-    is set to sigma_xi * tan(phi/2): the value that results when the combined uncertainty comes
-    from along-track errors of equal size on the two satellites.
-    """
     return scn.sigma_xi * float(np.tan(0.5 * np.deg2rad(scn.crossing_angle_deg)))
 
 
 def game(scn: M.Scenario) -> dict:
-    """Tables of one conjunction and the coordinator's best private and public rules."""
     c1, c2, obj, pc = E.nominal(scn)
     prv = G.solve_private(c1, c2, obj)
     pub = G.solve_public(c1, c2, obj)
@@ -137,12 +107,6 @@ def game(scn: M.Scenario) -> dict:
 
 
 def two_body_miss(scn: M.Scenario, u1: float, u2: float):
-    """Encounter-plane miss vector after two-body propagation of both satellites.
-
-    States at the nominal time of closest approach,
-    back to the burn epoch, burn along each satellite's own velocity, forward again, straight-line
-    closest approach, projection on the nominal encounter-plane axes.
-    """
     a, v, dt = scn.sma, mv.circular_speed(scn.sma), scn.lead_time
     half = 0.5 * np.deg2rad(scn.crossing_angle_deg)
     t1 = np.array([0.0, np.cos(half), np.sin(half)])
@@ -180,7 +144,6 @@ def main():
     scn = M.BASELINE
     base = game(scn)
 
-    # recomputed here versus stored by run_all.py
     stored = res["baseline"]
     for key in ("pc_table", "miss_xi_table", "cost_op1", "cost_op2", "coordinator_cost_table",
                 "maneuver_cost_fraction"):
@@ -234,7 +197,7 @@ def main():
             **base,
             "obedience": {
                 "A": A, "P": P,
-                "info": [list(r) for r in info],            # (player, recommended, deviation), zero-based
+                "info": [list(r) for r in info],
                 "targeted_mask": [tuple(r) in targeted for r in info],
             },
             "mixed_nash": {
@@ -249,7 +212,6 @@ def main():
         "learning": learning,
     }
 
-    # gallery: the first draws of the instance family
     rng = np.random.default_rng(GALLERY_SEED)
     gallery_params, gallery_expected = [], []
     family_rows = res["instance_family"]["rows"]

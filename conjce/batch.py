@@ -1,29 +1,3 @@
-"""Many conjunctions at once: a 72-hour batch among 30 satellites of 4 operators.
-
-Words used here:
-
-* A conjunction is one pair of satellites of two different operators.  Its game is one draw of
-  ``experiments.random_instance``; side 1 plays the role of operator 1 of that game, side 2 the
-  role of operator 2.  A slot is one side of one conjunction and belongs to that satellite's
-  operator.
-* A cell is the pair of actions in one conjunction, side 1 first.  Exact-one cells: SN, LN, NS, NL
-  (exactly one satellite burns).
-* A stable designation is an exact-one cell that is a pure Nash equilibrium of the conjunction's
-  game; ``E_k`` is the list of stable designations of conjunction k.
-* A free conjunction has one stable designation for each side, both with the same coordinator cost.
-
-The batch game: the players are the operators; operator p's cost is the sum over its slots of that
-conjunction's cost table; the coordinator's objective is the sum of the conjunctions' coordinator
-cost tables.  Each operator is told the recommendations for all its slots at once.
-
-Formulations (all solved with ``scipy.optimize.linprog(method="highs")``):
-
-* (a) ``joint_program(conjs, "full")``: all 9^K joint profiles;
-* (b) ``joint_program(conjs, "exact_one")``: the 4^K profiles in which every conjunction is in an
-  exact-one cell;
-* (c) ``per_conjunction_program(conjs)``: one stacked program with 9K variables;
-* (c') ``closed_form(conjs)``: the sum over k of the cheapest element of E_k.
-"""
 from __future__ import annotations
 
 import itertools
@@ -38,8 +12,7 @@ from . import experiments as E
 from . import games as G
 from . import model as M
 
-# fixed parameters
-FLEETS = ((0, 12), (12, 20), (20, 26), (26, 30))          # operator p owns satellites lo..hi-1
+FLEETS = ((0, 12), (12, 20), (20, 26), (26, 30))
 N_SATELLITES = 30
 N_OPERATORS = 4
 OPERATOR_OF = np.concatenate([np.full(hi - lo, p) for p, (lo, hi) in enumerate(FLEETS)])
@@ -47,25 +20,24 @@ WINDOW_HOURS = 72.0
 MASTER_SEED = 72
 MASTER_SIZE = 50
 K_GRID = (1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 30, 40, 50)
-SIZE_CAP = 100_000                                        # largest joint program that is built
-REPEATS = 3                                               # timing: smallest of this many
-AGREEMENT_TOL = 1e-6                                      # relative, between optimal values
-FEASIBILITY_TOL = 1e-9                                    # on rows scaled to max |coefficient| = 1
-FREE_TOL = 1e-9                                           # relative cost difference of a free conjunction
+SIZE_CAP = 100_000
+REPEATS = 3
+AGREEMENT_TOL = 1e-6
+FEASIBILITY_TOL = 1e-9
+FREE_TOL = 1e-9
 FURTHER_SEEDS = tuple(range(1000, 1200))
 BURDEN_KS = (20, 50)
 P1_KS = (2, 3)
 P5_KS = (6, 8, 10)
 BRUTE_FORCE_MAX_FREE = 12
 
-# all satellite pairs of different operators, in lexicographic order
 PAIRS = tuple((i, j) for i in range(N_SATELLITES) for j in range(i + 1, N_SATELLITES)
               if OPERATOR_OF[i] != OPERATOR_OF[j])
 
-LABEL = M.ACTION_LABELS                                   # N, S, L
-EXACT_ONE = ((1, 0), (2, 0), (0, 1), (0, 2))              # SN, LN, NS, NL
-FULL = tuple((a1, a2) for a1 in range(3) for a2 in range(3))   # row-major, as table.ravel()
-DEV = np.array([[1, 2], [0, 2], [0, 1]])                  # the two other actions, per own action
+LABEL = M.ACTION_LABELS
+EXACT_ONE = ((1, 0), (2, 0), (0, 1), (0, 2))
+FULL = tuple((a1, a2) for a1 in range(3) for a2 in range(3))
+DEV = np.array([[1, 2], [0, 2], [0, 1]])
 HIGHS_OPTIONS = {"primal_feasibility_tolerance": 1e-10, "dual_feasibility_tolerance": 1e-10}
 
 
@@ -74,22 +46,21 @@ def cell_label(cell) -> str:
 
 
 class CheckFailed(RuntimeError):
-    """A check did not hold; the run writes no results file."""
+    pass
 
 
-# the batch
 @dataclass
 class Conjunction:
-    index: int                    # position in generation order
-    sat1: int                     # satellite on side 1
-    sat2: int                     # satellite on side 2
-    time_h: float                 # time of closest approach, hours into the window
+    index: int
+    sat1: int
+    sat2: int
+    time_h: float
     scn: M.Scenario
-    c1: np.ndarray                # side 1's cost table [a1, a2]
-    c2: np.ndarray                # side 2's cost table [a1, a2]
-    obj: np.ndarray               # coordinator cost table [a1, a2]
-    stable: tuple                 # E_k: stable designations, in the order SN, LN, NS, NL
-    n_draws: int                  # instance draws used for this conjunction (rejected ones included)
+    c1: np.ndarray
+    c2: np.ndarray
+    obj: np.ndarray
+    stable: tuple
+    n_draws: int
 
     @property
     def op1(self) -> int:
@@ -108,7 +79,7 @@ class Conjunction:
 class Batch:
     seed: int
     conjunctions: list
-    rejected: list = field(default_factory=list)   # (conjunction index, Scenario) of every rejected draw
+    rejected: list = field(default_factory=list)
 
     @property
     def n_draws(self) -> int:
@@ -116,7 +87,6 @@ class Batch:
 
 
 def stable_designations(c1, c2) -> tuple:
-    """Exact-one cells that are pure Nash equilibria of the conjunction's game (``games.pure_nash``)."""
     nash = set(G.pure_nash(c1, c2))
     return tuple(cell for cell in EXACT_ONE if cell in nash)
 
@@ -129,14 +99,6 @@ def make_conjunction(index, sat1, sat2, time_h, scn, n_draws=1) -> Conjunction:
 
 
 def generate_batch(seed: int, n: int = MASTER_SIZE) -> Batch:
-    """Draw a batch of n conjunctions with one generator seeded with ``seed``.
-
-    For each conjunction in turn: a pair uniformly among the pairs not yet used, a fair coin for
-    which satellite is side 1, a time uniform on the window, then instances of the family of
-    ``experiments.random_instance`` until one has at least one stable designation.  Because the
-    draws are made conjunction by conjunction, the first K conjunctions of a batch of n are the
-    batch of K drawn with the same seed.
-    """
     rng = np.random.default_rng(seed)
     remaining = list(range(len(PAIRS)))
     conjs, rejected = [], []
@@ -158,7 +120,6 @@ def generate_batch(seed: int, n: int = MASTER_SIZE) -> Batch:
 
 
 def slots_of(conjs) -> list:
-    """For each operator, its slots as (conjunction position, side), side 0 = side 1."""
     out = [[] for _ in range(N_OPERATORS)]
     for k, c in enumerate(conjs):
         out[c.op1].append((k, 0))
@@ -167,13 +128,10 @@ def slots_of(conjs) -> list:
 
 
 def _side_cost(conj, side) -> np.ndarray:
-    """Cost table of one side indexed [own action, other side's action]."""
     return conj.c1 if side == 0 else conj.c2.T
 
 
-# linear programs
 def _scale_rows(A):
-    """Divide every row by its largest absolute coefficient, as ``games.solve_private`` does."""
     A = sparse.csr_matrix(A)
     scale = np.asarray(abs(A).max(axis=1).todense()).ravel()
     scale[scale == 0] = 1.0
@@ -181,37 +139,26 @@ def _scale_rows(A):
 
 
 def _clean(x) -> np.ndarray:
-    """Same clean-up as ``games._solve_lp``: clip, zero entries below 1e-12, renormalise."""
     x = np.clip(np.asarray(x, dtype=float), 0.0, None)
     x[x < 1e-12] = 0.0
     return x / x.sum()
 
 
 def _lp(c, A_ub, A_eq, b_eq):
-    """min c @ x  s.t.  A_ub x <= 0,  A_eq x = b_eq,  x >= 0 (HiGHS)."""
     return linprog(c, A_ub=A_ub, b_ub=np.zeros(A_ub.shape[0]), A_eq=A_eq, b_eq=b_eq,
                    bounds=(0, None), method="highs", options=HIGHS_OPTIONS)
 
 
 def profiles(K: int, cells) -> np.ndarray:
-    """All joint profiles as an integer array (N, K) of cell indices, conjunction 0 most significant
-    (so a full-joint solution reshaped to (9,) * K has one axis per conjunction)."""
     m = len(cells)
     return np.indices((m,) * K, dtype=np.int64).reshape(K, -1).T
 
 
 def joint_rows(conjs, cells, multi: bool = False):
-    """Obedience rows of the batch game over the profiles built from ``cells``, unscaled.
-
-    One row per (operator p, tuple r of recommendations to p's slots, slot s of p, other action d)
-    when ``multi`` is False; with ``multi`` True one row per (p, r, alternative tuple d != r), the
-    deviations in several slots at once.  Rows that no profile reaches are dropped.
-    Returns (A as csr, objective vector, profile array).
-    """
     K = len(conjs)
     cells = np.asarray(cells, dtype=np.int64)
     prof = profiles(K, cells)
-    act = cells[prof]                                     # (N, K, 2): actions of side 1 and side 2
+    act = cells[prof]
     N = prof.shape[0]
     cols = np.arange(N)
     rows, cs, vals = [], [], []
@@ -235,7 +182,7 @@ def joint_rows(conjs, cells, multi: bool = False):
                     vals.append(base - C[d, oth[:, j]])
             off += 3 ** n * n * 2
         else:
-            D = np.indices((3,) * n, dtype=np.int64).reshape(n, -1).T     # all tuples (M, n)
+            D = np.indices((3,) * n, dtype=np.int64).reshape(n, -1).T
             d_idx = D @ weights
             Mn = D.shape[0]
             gain = np.zeros((N, Mn))
@@ -265,12 +212,6 @@ def _summary(res, c, A_ub, n_eq):
 
 
 def joint_program(conjs, kind: str = "full", multi: bool = False) -> dict:
-    """(a) ``kind="full"``: all 9^K profiles.  (b) ``kind="exact_one"``: the 4^K exact-one profiles.
-
-    Returns a dict with the cleaned optimum ``x`` (None if infeasible), ``optimum``, the HiGHS
-    ``status`` (0 optimal, 2 infeasible), the sizes (variables, rows with the simplex row,
-    nonzeros with the simplex row), the scaled rows ``A`` and the ``profiles``.
-    """
     cells = FULL if kind == "full" else EXACT_ONE
     A, c, prof = joint_rows(conjs, cells, multi=multi)
     A = _scale_rows(A)
@@ -281,8 +222,6 @@ def joint_program(conjs, kind: str = "full", multi: bool = False) -> dict:
 
 
 def per_conjunction_program(conjs) -> dict:
-    """(c): one stacked program, a probability table per conjunction with its 12 obedience rows
-    (``games.obedience_system``), each row scaled as in ``games.solve_private``."""
     K = len(conjs)
     blocks = [_scale_rows(G.obedience_system(c.c1, c.c2)[0]) for c in conjs]
     A = sparse.block_diag(blocks, format="csr")
@@ -300,7 +239,6 @@ def per_conjunction_program(conjs) -> dict:
 
 
 def closed_form(conjs) -> float:
-    """(c'): sum over k of the cheapest stable designation; infinite if some E_k is empty."""
     total = 0.0
     for c in conjs:
         if not c.stable:
@@ -310,7 +248,6 @@ def closed_form(conjs) -> float:
 
 
 def timed(fn, *args, repeats: int = REPEATS, **kw):
-    """Smallest wall-clock of ``repeats`` calls (build plus solve) and the last result."""
     best, out = np.inf, None
     for _ in range(repeats):
         t0 = time.perf_counter()
@@ -326,21 +263,17 @@ def rel_diff(u: float, v: float) -> float:
 
 
 def max_violation(A_scaled, x) -> float:
-    """Largest left-hand side of the scaled rows A x <= 0 (0 if none is positive)."""
     if A_scaled.shape[0] == 0:
         return 0.0
     return float(max(0.0, np.max(A_scaled @ x)))
 
 
-# the checks
 def marginals(x_full, K: int) -> list:
-    """Per-conjunction 3x3 marginals of a distribution over the 9^K full profiles."""
     t = np.asarray(x_full).reshape((9,) * K)
     return [t.sum(axis=tuple(i for i in range(K) if i != k)).reshape(3, 3) for k in range(K)]
 
 
 def product_distribution(tables) -> np.ndarray:
-    """Product of per-conjunction tables as a distribution over the 9^K full profiles."""
     out = np.ones(1)
     for t in tables:
         out = np.kron(out, np.asarray(t).ravel())
@@ -348,7 +281,6 @@ def product_distribution(tables) -> np.ndarray:
 
 
 def stable_mask(conjs, prof) -> np.ndarray:
-    """For exact-one profiles: True where every conjunction is in one of its stable designations."""
     ok = np.ones(prof.shape[0], dtype=bool)
     for k, c in enumerate(conjs):
         allowed = np.array([cell in c.stable for cell in EXACT_ONE])
@@ -357,8 +289,6 @@ def stable_mask(conjs, prof) -> np.ndarray:
 
 
 def check_p1(conjs) -> dict:
-    """P1: the program with every multi-slot deviation has the same optimum, and the single-slot
-    optimum violates none of the multi-slot rows."""
     single = joint_program(conjs, "full")
     multi = joint_program(conjs, "full", multi=True)
     return {"K": len(conjs), "max_slots_of_an_operator": max(len(s) for s in slots_of(conjs)),
@@ -369,8 +299,6 @@ def check_p1(conjs) -> dict:
 
 
 def check_p2(conjs, full=None, per=None, private_sum=None) -> dict:
-    """P2: optimum of (a) = optimum of (c) = sum of ``games.solve_private``; marginals of the (a)
-    optimum obey each conjunction's 12 rows; the product of the (c) tables obeys the joint rows."""
     K = len(conjs)
     full = full if full is not None else joint_program(conjs, "full")
     per = per if per is not None else per_conjunction_program(conjs)
@@ -389,8 +317,6 @@ def check_p2(conjs, full=None, per=None, private_sum=None) -> dict:
 
 
 def check_p3(conjs, ex=None) -> dict:
-    """P3: optimum of (b) = closed form (c'); the (b) optimum has no mass outside the products of
-    stable designations."""
     ex = ex if ex is not None else joint_program(conjs, "exact_one")
     cf = closed_form(conjs)
     mass = float(ex["x"][~stable_mask(conjs, ex["profiles"])].sum()) if ex["x"] is not None else np.nan
@@ -399,10 +325,6 @@ def check_p3(conjs, ex=None) -> dict:
 
 
 def infeasibility_batch(batch: Batch, size: int = 3):
-    """A small batch with one conjunction whose E_k is empty: the first ``size`` conjunctions of
-    ``batch``, with the game of conjunction min(j, size - 1) replaced by the first rejected draw
-    (j = the conjunction at whose generation that draw was rejected).  If the batch had no rejected
-    draw, the game is built by hand so that no burn is worth it for either side."""
     conjs = list(batch.conjunctions[:size])
     if batch.rejected:
         j, scn = batch.rejected[0]
@@ -424,9 +346,7 @@ def check_p3_infeasible(batch: Batch, size: int = 3) -> dict:
             "infeasible": ex["status"] == 2, "closed_form": closed_form(conjs)}
 
 
-# burden-sharing
 def designation_info(conj) -> dict:
-    """Stage 1 for one conjunction: its cost-optimal stable designations and whether it is free."""
     costs = {e: float(conj.obj[e]) for e in conj.stable}
     best = min(costs.values())
     optimal = tuple(e for e in conj.stable if rel_diff(costs[e], best) <= FREE_TOL)
@@ -438,7 +358,6 @@ def designation_info(conj) -> dict:
 
 
 def fixed_rule_side(conj) -> int:
-    """Side (0 or 1) that ``model.fixed_rule_profile`` designates to burn in this conjunction."""
     a = M.fixed_rule_profile(conj.scn)
     return 0 if a[0] > 0 else 1
 
@@ -448,7 +367,6 @@ def burner(cell) -> int:
 
 
 def _burden_setup(conjs):
-    """Burns already fixed by stage 1, and for each free conjunction its two satellites."""
     base = np.zeros(N_SATELLITES)
     free = []
     for k, c in enumerate(conjs):
@@ -461,8 +379,6 @@ def _burden_setup(conjs):
 
 
 def _incidence(conjs, free):
-    """B[i, f] = +1 if satellite i is side 1 of free conjunction f, -1 if side 2; s2[i] = number of
-    free conjunctions with i on side 2.  Burns of i with z_f = 1 meaning side 1 burns: s2 + B z."""
     B = np.zeros((N_SATELLITES, len(free)))
     s2 = np.zeros(N_SATELLITES)
     for f, k in enumerate(free):
@@ -480,15 +396,12 @@ def burns_fixed_tie_break(conjs) -> np.ndarray:
 
 
 def burns_from_choice(conjs, z) -> np.ndarray:
-    """Burns per satellite when free conjunction f (in order) has side 1 burn iff z[f] = 1."""
     base, free = _burden_setup(conjs)
     B, s2 = _incidence(conjs, free)
     return base + s2 + B @ np.asarray(z, dtype=float)
 
 
 def balanced_randomised(conjs) -> dict:
-    """P5 program: (free conjunctions + 1) variables q_f = P(side 1 burns in f) and t;
-    minimise t subject to expected burns of every satellite <= t."""
     base, free = _burden_setup(conjs)
     B, s2 = _incidence(conjs, free)
     F = len(free)
@@ -503,12 +416,11 @@ def balanced_randomised(conjs) -> dict:
 
 
 def balanced_randomised_joint(conjs) -> dict:
-    """The same minimum over all distributions on the 2^F joint assignments of the free conjunctions."""
     base, free = _burden_setup(conjs)
     B, s2 = _incidence(conjs, free)
     F = len(free)
     Z = np.array(list(itertools.product((0, 1), repeat=F)), dtype=float).reshape(-1, F)
-    burns = (base + s2)[:, None] + B @ Z.T                     # (satellites, assignments)
+    burns = (base + s2)[:, None] + B @ Z.T
     n = Z.shape[0]
     c = np.zeros(n + 1)
     c[-1] = 1.0
@@ -520,9 +432,6 @@ def balanced_randomised_joint(conjs) -> dict:
 
 
 def balanced_deterministic(conjs) -> dict:
-    """0/1 choice for every free conjunction minimising the largest number of burns
-    (``scipy.optimize.milp``).  The optimal value is unique, the assignment found is one of possibly
-    several."""
     base, free = _burden_setup(conjs)
     B, s2 = _incidence(conjs, free)
     F = len(free)
@@ -546,8 +455,6 @@ def brute_force_max_burns(conjs) -> int:
 
 
 def burden(conjs) -> dict:
-    """The three stage-2 variants for one batch; stage 1 gives every conjunction a cheapest stable
-    designation, so the coordinator cost is the same in all three."""
     fixed = burns_fixed_tie_break(conjs)
     rnd = balanced_randomised(conjs)
     det = balanced_deterministic(conjs)
@@ -563,13 +470,10 @@ def burden(conjs) -> dict:
 
 
 def histogram(burns) -> list:
-    """Number of satellites with 0, 1, 2, ... burns."""
     return np.bincount(np.asarray(burns, dtype=int), minlength=1).tolist()
 
 
-# carry-over
 def designated_burners(conjs, variant: str) -> list:
-    """Satellite designated to burn in each conjunction (``"fixed"`` or ``"deterministic"`` tie-break)."""
     _, free = _burden_setup(conjs)
     z = balanced_deterministic(conjs)["z"] if variant == "deterministic" else None
     out = []
@@ -586,8 +490,6 @@ def designated_burners(conjs, variant: str) -> list:
 
 
 def carry_over(conjs) -> dict:
-    """Ordered by time of closest approach: conjunctions with a satellite already designated to
-    burn in an earlier conjunction, and conjunctions that share a satellite with another one."""
     order = sorted(range(len(conjs)), key=lambda k: conjs[k].time_h)
     out = {"n_conjunctions": len(conjs)}
     for variant in ("fixed", "deterministic"):
@@ -604,32 +506,22 @@ def carry_over(conjs) -> dict:
     return out
 
 
-TIE_TOL = 1e-12          # the tolerance of games.pure_nash
+TIE_TOL = 1e-12
 
 
 def burn_size_tie_slots(conj) -> int:
-    """Number of slots of this conjunction (0, 1 or 2) with a burn-size tie.
-
-    Definition (the no-tie assumption of P3): a slot has a tie if
-    the small and the large burn are both best replies to N on the other side, that is
-    g_s(S, N) = g_s(L, N) <= g_s(N, N), with g_s the slot's cost table indexed [own, other].
-    Tolerance: absolute 1e-12, the one ``games.pure_nash`` uses; a burn is a best reply to N if
-    its cost is at most the smallest of the three costs against N plus 1e-12.
-    """
     n = 0
     for side in (0, 1):
-        g = _side_cost(conj, side)[:, 0]          # own action N, S, L against N on the other side
+        g = _side_cost(conj, side)[:, 0]
         best = g.min()
         n += bool(g[1] <= best + TIE_TOL and g[2] <= best + TIE_TOL)
     return n
 
 
 def n_slots_with_burn_size_tie(conjs) -> int:
-    """Number of slots with a burn-size tie (``burn_size_tie_slots``) over the given conjunctions."""
     return int(sum(burn_size_tie_slots(c) for c in conjs))
 
 
-# the run
 def _family(batches) -> dict:
     kept = [c for b in batches for c in b.conjunctions]
     draws = sum(b.n_draws for b in batches)
@@ -659,13 +551,10 @@ def _conj_record(c, private, public) -> dict:
 
 
 def strictly_cheaper(a: float, b: float) -> bool:
-    """a < b by more than the relative threshold used throughout (1e-9)."""
     return a < b * (1 - FREE_TOL)
 
 
 def best_public_direct(conj):
-    """Best public rule computed directly: the cheapest pure Nash equilibrium of the conjunction's
-    game, ties broken as in ``games.solve_public``.  Returns (cell, coordinator cost)."""
     nash = G.pure_nash(conj.c1, conj.c2)
     if not nash:
         return None, np.inf
@@ -674,7 +563,6 @@ def best_public_direct(conj):
 
 
 def private_costs_per_conjunction(conjs) -> list:
-    """Private optimum (rule known, zero margin) of every conjunction, read from program (c)."""
     per = per_conjunction_program(conjs)
     return [float(c.obj.ravel() @ t.ravel()) for c, t in zip(conjs, per["tables"])]
 
@@ -694,7 +582,6 @@ def _totals(conjs, private, public) -> dict:
             "rel_gap_private_vs_stable": (s - p) / s, "rel_gap_public_vs_stable": (s - u) / s,
             "rel_gap_private_vs_public": (u - p) / u,
             "n_public_strictly_cheaper": int(sum(1 for a, b in zip(public, stable) if a < b * (1 - FREE_TOL))),
-            # private strictly cheaper than the cheapest stable designation
             "n_private_strictly_cheaper": int(sum(1 for a, b in zip(private, stable) if a < b * (1 - FREE_TOL))),
             "n_private_strictly_cheaper_than_public": int(sum(prv_cheaper)),
             "share_of_public_total_where_private_strictly_cheaper":
@@ -713,8 +600,6 @@ def _spread(values) -> dict:
 
 
 def totals_fast(conjs) -> dict:
-    """Totals of one batch with the private sums from program (c) and the best public rule as the
-    cheapest pure equilibrium computed directly (``best_public_direct``)."""
     private = private_costs_per_conjunction(conjs)
     public = [best_public_direct(c)[1] for c in conjs]
     stable = [designation_info(c)["cost"] for c in conjs]
@@ -728,7 +613,6 @@ def totals_fast(conjs) -> dict:
 
 
 def family_private_vs_public(rows) -> dict:
-    """Over all conjunctions of the batches whose ``totals_fast`` rows are given."""
     prv = np.concatenate([r["private"] for r in rows])
     pub = np.concatenate([r["public"] for r in rows])
     cheaper = prv < pub * (1 - FREE_TOL)
@@ -740,8 +624,6 @@ def family_private_vs_public(rows) -> dict:
 
 
 def rejected_breakdown(batches) -> dict:
-    """Among rejected draws: nobody burning (NN) is a pure equilibrium; some pure equilibrium has
-    both sides burning; no pure equilibrium at all.  The three need not be exclusive."""
     nn = both = none = total = 0
     for b in batches:
         for _, scn in b.rejected:
@@ -773,10 +655,6 @@ def _stats(values) -> dict:
 def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GRID,
         further_seeds=FURTHER_SEEDS, size_cap: int = SIZE_CAP, repeats: int = REPEATS,
         p1_ks=None, p5_ks=P5_KS, burden_ks=BURDEN_KS, log=print) -> dict:
-    """The whole batch study as one results dict; raises ``CheckFailed`` if a check does not hold.
-
-    ``p1_ks=None`` runs the P1 check at every K of the grid within the full-joint size cap; the
-    tests run it at ``P1_KS``."""
     t_start = time.perf_counter()
     master = generate_batch(master_seed, n_master)
     conjs = master.conjunctions
@@ -798,7 +676,6 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     res["family_master_only"] = _family([master])
     res["family"]["rejected_breakdown"] = rejected_breakdown([master] + further)
     res["family_master_only"]["rejected_breakdown"] = rejected_breakdown([master])
-    # spread over the further batches
     fast = [totals_fast(b.conjunctions) for b in further]
     res["totals_further_batches"] = {
         "n_batches": len(fast), "K": MASTER_SIZE,
@@ -817,7 +694,6 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
             failures.append(text)
             log("CHECK FAILED: " + text)
 
-    # timing table and checks P2, P3 at every K within the size cap
     timing, p2, p3 = [], [], []
     for K in k_grid:
         sub = conjs[:K]
@@ -854,8 +730,7 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     infeas = check_p3_infeasible(master)
     need(infeas["empty_E_k"] and infeas["infeasible"], f"P3 infeasibility: status {infeas['status']}")
 
-    # P1
-    if p1_ks is None:                       # every K of the grid within the full-joint size cap
+    if p1_ks is None:
         p1_ks = [K for K in k_grid if 9 ** K <= size_cap]
     p1 = [check_p1(conjs[:K]) for K in p1_ks]
     for r in p1:
@@ -863,7 +738,6 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
         need(r["violation_of_all_deviation_rows"] <= FEASIBILITY_TOL,
              f"P1 violation at K={r['K']}: {r['violation_of_all_deviation_rows']:.3g}")
 
-    # P5
     p5 = []
     for K in p5_ks:
         a, b = balanced_randomised(conjs[:K]), balanced_randomised_joint(conjs[:K])
@@ -892,7 +766,6 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
     }
     res["timing"] = timing
 
-    # totals, burden, carry-over
     res["totals"] = {f"K{K}": _totals(conjs[:K], private[:K], public[:K]) for K in burden_ks}
     res["burden"] = {f"master_K{K}": _burden_record(conjs[:K]) for K in burden_ks}
     rows = [burden(b.conjunctions) for b in further]
@@ -903,8 +776,6 @@ def run(master_seed: int = MASTER_SEED, n_master: int = MASTER_SIZE, k_grid=K_GR
         "max_expected_burns_balanced_randomised": _stats([r["max_expected_burns_balanced_randomised"] for r in rows]),
         "max_burns_balanced_deterministic": _stats([r["max_burns_balanced_deterministic"] for r in rows]),
     }
-    # brute force wherever at most 12 conjunctions are free: the burden batches and, since few of
-    # those qualify, every master prefix of the K grid
     prefixes = [burden(conjs[:K]) for K in k_grid]
     brute = [(r["brute_force_max_burns"], r["max_burns_balanced_deterministic"])
              for r in rows + prefixes if "brute_force_max_burns" in r]

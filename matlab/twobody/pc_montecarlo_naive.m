@@ -1,7 +1,4 @@
 function mc = pc_montecarlo_naive(S, out, n, seed)
-%PC_MONTECARLO_NAIVE Plain Monte Carlo collision probability, for comparison only.
-%   Positions are drawn from the Gaussian miss distribution; hits are counted directly and
-%   an exact Clopper-Pearson 95 percent interval is given.
 P = load_params();
 tb = P.two_body_check;
 rng(seed, 'twister');
